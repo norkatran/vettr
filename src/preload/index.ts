@@ -1,5 +1,5 @@
-import { contextBridge, ipcRenderer } from 'electron'
 import { type AgentideApi, IpcChannel } from '@shared/ipc'
+import { contextBridge, ipcRenderer } from 'electron'
 
 const api: AgentideApi = {
   openProject: () => ipcRenderer.invoke(IpcChannel.openProject)

@@ -17,6 +17,13 @@ Electron + TypeScript + React, built with [electron-vite](https://electron-vite.
 - `npm run build` - production build into `out/`
 - `npm start` - preview the production build
 - `npm run typecheck` - type-check main/preload and renderer
+- `npm run lint` - lint with [Biome](https://biomejs.dev)
+- `npm test` - run the [Vitest](https://vitest.dev) suite (`*.test.ts` files under `src/`)
+- `npm run format` - format with Biome (`npm run format:check` verifies formatting and lint without writing)
+
+## CI
+
+A Forgejo Actions workflow (`.forgejo/workflows/ci.yml`) runs on pushes to `main` and on pull requests: install, typecheck, lint, format check, test and build. There are no Docker images or packages to publish.
 
 If the Electron binary is missing after `npm install` (install scripts disabled), run `node node_modules/electron/install.js`.
 
@@ -96,7 +103,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 ### MVP release checklist
 
 - [ ] End-to-end run of the core flow: prompt, watch, review, comment, repeat, commit, push
-- [ ] Linting, formatting and automated tests for the main process and shared logic
+- [ ] Linting, formatting and automated tests for the main process and shared logic (Biome and a minimal Vitest suite are set up and run in CI; the suite needs real tests as main-process and shared logic lands)
 - [ ] Out-of-scope guardrails respected (no editor, language server, debugger, extensions or primary file tree)
 - [ ] Build and smoke test on the first target OS
 

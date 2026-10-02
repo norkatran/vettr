@@ -1,6 +1,6 @@
 import { join } from 'node:path'
-import { BrowserWindow, app, dialog, ipcMain } from 'electron'
 import { IpcChannel } from '@shared/ipc'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 
 function createWindow(): void {
   const win = new BrowserWindow({

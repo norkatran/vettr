@@ -14,7 +14,9 @@ export function App(): React.JSX.Element {
       <header className="titlebar">
         <span>agentide</span>
         <span className="project">{project ?? 'No project open'}</span>
-        <button onClick={() => void openProject()}>Open project</button>
+        <button type="button" onClick={() => void openProject()}>
+          Open project
+        </button>
       </header>
       <main className="home">
         <textarea
@@ -23,7 +25,9 @@ export function App(): React.JSX.Element {
           onChange={(e) => setPrompt(e.target.value)}
           disabled={!project}
         />
-        <button disabled={!project || !prompt.trim()}>Start</button>
+        <button type="button" disabled={!project || !prompt.trim()}>
+          Start
+        </button>
       </main>
     </div>
   )

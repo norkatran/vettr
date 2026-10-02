@@ -114,6 +114,8 @@ The agent has full permissions, so the Docker sandbox is the safety boundary. On
 
 Code signing, auto-update, cross-platform quirks, and performance on very large diffs (plus binary files and renames) are the long tail. Defer until the core loop works.
 
+Linting and formatting use Biome (one tool for both, config in `biome.json`, matching the existing single-quote, no-semicolon style). Tests use Vitest (config in `vitest.config.ts`, files named `*.test.ts` next to the code); the suite is minimal for now. CI runs on Forgejo Actions (`.forgejo/workflows/ci.yml`): install, typecheck, lint, format check, test and build, on pushes to `main` and on pull requests. As a desktop app there are no Docker images to build, and nothing is published yet, so there is no release job. Packaging and publishing get added with the shipping work.
+
 ## 6. Suggested build order
 
 Each milestone should be usable on its own.
