@@ -1,22 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export function App(): React.JSX.Element {
   const [project, setProject] = useState<string | null>(null)
   const [prompt, setPrompt] = useState('')
 
-  async function openProject(): Promise<void> {
-    const path = await window.agentide.openProject()
-    if (path) setProject(path)
-  }
+  useEffect(() => window.agentide.onProjectOpened(setProject), [])
 
   return (
     <div className="layout">
       <header className="titlebar">
         <span>agentide</span>
         <span className="project">{project ?? 'No project open'}</span>
-        <button type="button" onClick={() => void openProject()}>
-          Open project
-        </button>
       </header>
       <main className="home">
         <textarea

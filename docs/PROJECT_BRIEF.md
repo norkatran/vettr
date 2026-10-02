@@ -12,7 +12,7 @@ The user never browses a file tree to see what happened. They prompt, watch the 
 
 ## 2. Core user flow
 
-1. **Open a project.** The app shows a home screen with a prompt input.
+1. **Open a project** from the File menu (Open Project, Ctrl+O). The app shows a home screen with a prompt input.
 2. **Enter requirements.** The prompt is passed to an agent.
 3. **Watch the agent work.** The session view looks like any coding harness: streamed messages, tool calls and file edits. The user stays in the loop.
 4. **Open the Changes view.** A single diff/changes button shows everything that changed, laid out like a merge/pull request comparison on a git host.

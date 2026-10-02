@@ -45,7 +45,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 ### 1. Shell
 
 - [x] Electron + TypeScript + React scaffold with typed IPC
-- [x] Open a project folder via a native picker
+- [x] Open a project folder via a native picker, from File > Open Project (Ctrl+O) in the application menu
 - [ ] Remember the current project and recent projects across restarts
 - [ ] Verify the chosen folder is a git repository, and handle the case where it is not
 - [ ] Home screen with a prompt input

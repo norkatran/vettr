@@ -1,9 +1,12 @@
 /** Typed IPC contract shared by main, preload and renderer. */
 export interface AgentideApi {
-  /** Show a native folder picker; resolves to the chosen path or null. */
-  openProject(): Promise<string | null>
+  /**
+   * Subscribe to projects chosen via File > Open Project. The callback gets
+   * the chosen folder path; returns an unsubscribe function.
+   */
+  onProjectOpened(callback: (path: string) => void): () => void
 }
 
 export const IpcChannel = {
-  openProject: 'project:open'
+  projectOpened: 'project:opened'
 } as const
