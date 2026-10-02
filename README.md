@@ -26,12 +26,14 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 
 ### 0. Decisions to settle first (brief section 8)
 
-- [ ] Choose the first agent to wrap (suggested: Claude Code via the Claude Agent SDK)
-- [ ] Confirm single agent for the MVP, with multi-agent and worktrees deferred
-- [ ] Confirm comments on manually edited lines are marked outdated
-- [ ] Confirm the diff baseline is working tree against `HEAD`
-- [ ] Decide the default permission model for agent shell commands
-- [ ] Pick the first OS to build and test on
+- [x] First agent: Claude Code via the Claude Agent SDK, running inside the sandbox container behind the adapter interface (main process talks to a runner in the container over stdio)
+- [x] Single agent for the MVP, with multi-agent and worktrees deferred
+- [x] Comments on manually edited lines are marked outdated (collapsed, not re-anchored by guessing)
+- [x] Diff baseline is the working tree against `HEAD`, including untracked files
+- [x] Permission model: agents get full permissions inside a Docker sandbox, so there are no approval prompts in the MVP. Docker is a hard dependency
+- [x] First OS: Linux
+- [x] Sandbox: project is bind-mounted into the container, run with the host uid/gid, API key sent to the runner over stdin (never an env var, `--env-file` or file, so it is not visible in `docker inspect`) and stored on the host with Electron `safeStorage`, open network access for now
+- [x] Commit and push are strictly user-initiated (buttons in the UI, user-typed commit message). The container has no git credentials, and `.git` is mounted read-only so the agent cannot change history, hooks or config (which would otherwise run on the host with the user's credentials)
 
 ### 1. Shell
 
@@ -45,12 +47,14 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 
 ### 2. Agent session
 
-- [ ] Define the agent adapter interface (`start`, `send`, `interrupt`, `respondToApproval`, event stream)
-- [ ] Implement the first adapter in the main process, behind the interface
+- [ ] Define the agent adapter interface (`start`, `send`, `interrupt`, event stream; keep `respondToApproval` in the interface for later)
+- [ ] Build the sandbox image (Node, Claude Agent SDK, runner script that speaks JSON lines over stdio)
+- [ ] Start and stop the container from the main process: bind-mount the project, host uid/gid, send the API key to the runner over stdin, check Docker is available and report clearly if not
+- [ ] Implement the first adapter in the main process, behind the interface, driving the in-container runner
+- [ ] Prevent the agent from committing, pushing or tampering with git: mount `.git` read-only (so no commits, and no edits to hooks or config that would later run on the host with the user's credentials), no git credentials in the container, and handle worktree/submodule layouts where `.git` is a file or lives elsewhere
 - [ ] Stream agent events to the renderer over typed IPC
 - [ ] Session view: streamed assistant text
 - [ ] Session view: tool calls (started and finished) and file edits
-- [ ] Approval prompts for shell commands, with a user-extendable allowlist
 - [ ] Interrupt the current turn
 - [ ] Send follow-up messages in the same session
 - [ ] Surface errors and agent exit clearly
@@ -78,8 +82,8 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 ### 5. Commit and push
 
 - [ ] Stage and unstage files (and ideally hunks) from the Changes view
-- [ ] Commit message input and commit
-- [ ] Push using the user's installed `git`, credentials and config
+- [ ] Commit message input and a commit button (the user writes the message; the agent never commits)
+- [ ] Push button, using the host's installed `git`, credentials and config (the agent never pushes)
 - [ ] Show git errors (hooks, auth, rejected pushes) in the UI
 
 ### 6. External editor
@@ -99,6 +103,10 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 ### Later
 
 - [ ] Checkpoints and undo per agent turn
+- [ ] Approval prompts and a user-extendable allowlist for shell commands
+- [ ] Restricted network access for the sandbox container
+- [ ] Host-side API proxy that injects the key, so the container only gets a placeholder token and `ANTHROPIC_BASE_URL` (verify the SDK honours the base URL override; bind the proxy to the Docker bridge only)
+- [ ] Per-project sandbox image override
 - [ ] Multiple parallel agents using git worktrees
 - [ ] Additional agent adapters
 - [ ] Packaging, code signing and auto-update
