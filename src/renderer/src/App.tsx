@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
+import { Home } from './Home'
+
+// Placeholder until the agent adapter and Session view exist (milestone 2).
+function startSession(_prompt: string): void {}
 
 export function App(): React.JSX.Element {
   const [project, setProject] = useState<string | null>(null)
-  const [prompt, setPrompt] = useState('')
 
   useEffect(() => {
     // Subscribe first so a pick made while the saved project loads is not overwritten.
@@ -23,17 +26,7 @@ export function App(): React.JSX.Element {
         <span>agentide</span>
         <span className="project">{project ?? 'No project open'}</span>
       </header>
-      <main className="home">
-        <textarea
-          placeholder="What should the agent do?"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          disabled={!project}
-        />
-        <button type="button" disabled={!project || !prompt.trim()}>
-          Start
-        </button>
-      </main>
+      <Home project={project} onSubmit={startSession} />
     </div>
   )
 }

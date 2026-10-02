@@ -49,7 +49,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [x] Open a project folder via a native picker, from File > Open Project (Ctrl+O) in the application menu
 - [x] Remember the current project and recent projects across restarts (File > Recent Projects, last 10)
 - [x] Verify the chosen folder is a git repository (a subfolder resolves to the repo root); otherwise show an error and do not open it
-- [ ] Home screen with a prompt input
+- [x] Home screen with a prompt input (Ctrl+Enter or Start submits; disabled until a project is open; submission is a stub until the Session surface exists)
 - [ ] Basic VS Code / Atom-style layout (title bar, status bar, main surface, theme)
 - [ ] Navigation between the Home, Session and Changes surfaces
 
