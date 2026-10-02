@@ -37,6 +37,7 @@ The user never browses a file tree to see what happened. They prompt, watch the 
 | Commit and push | Decided | Strictly user-initiated via UI buttons; the agent never commits or pushes. The container has no git credentials and `.git` is mounted read-only. |
 | First platform | Decided | Linux first. |
 | Project persistence | Decided | The last opened project is reopened on launch; opening another project makes it the new default. File > Recent Projects lists the last 10 (most recent first). Stored by the main process in `projects.json` under Electron's `userData` dir; folders that no longer exist are dropped. |
+| Non-git folders | Decided | A project must be inside a git repository. The picker result is resolved with `git rev-parse --show-toplevel`, so a subfolder opens its repo root. Anything else is rejected with an error dialog (and dropped from recents); agentide never runs `git init` itself. The same check runs on Recent Projects clicks and on the persisted project at launch. |
 
 ### Explicitly out of scope
 

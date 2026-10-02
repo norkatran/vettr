@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { IpcChannel } from '@shared/ipc'
 import {
@@ -10,6 +9,7 @@ import {
   type MenuItemConstructorOptions,
   type OpenDialogOptions
 } from 'electron'
+import { findRepoRoot } from './git'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
 
 function createWindow(): void {
@@ -38,13 +38,22 @@ function activateProject(win: BrowserWindow | undefined, path: string): void {
   target?.webContents.send(IpcChannel.projectOpened, path)
 }
 
-function openRecentProject(win: BrowserWindow | undefined, path: string): void {
-  if (existsSync(path)) {
-    activateProject(win, path)
-  } else {
-    forgetProject(path)
-    buildMenu()
+/**
+ * Open `path` as the project, resolving it to its git repo root. If it is not
+ * in a git repository, tell the user and drop it from the recent list.
+ */
+async function openProjectAt(win: BrowserWindow | undefined, path: string): Promise<void> {
+  const root = await findRepoRoot(path)
+  if (root) {
+    activateProject(win, root)
+    return
   }
+  forgetProject(path)
+  buildMenu()
+  const message = `${path} is not a git repository.`
+  const detail = 'Choose a folder that is inside a git repository.'
+  const options = { type: 'error' as const, message, detail }
+  await (win ? dialog.showMessageBox(win, options) : dialog.showMessageBox(options))
 }
 
 async function openProject(win: BrowserWindow | undefined): Promise<void> {
@@ -54,7 +63,7 @@ async function openProject(win: BrowserWindow | undefined): Promise<void> {
     : await dialog.showOpenDialog(options)
   const path = result.filePaths[0]
   if (result.canceled || !path) return
-  activateProject(win, path)
+  await openProjectAt(win, path)
 }
 
 function buildMenu(): void {
@@ -75,7 +84,7 @@ function buildMenu(): void {
           enabled: recent.length > 0,
           submenu: recent.map((path) => ({
             label: path,
-            click: (_item, win) => openRecentProject(win as BrowserWindow | undefined, path)
+            click: (_item, win) => void openProjectAt(win as BrowserWindow | undefined, path)
           }))
         },
         { type: 'separator' },
@@ -89,8 +98,10 @@ function buildMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
-void app.whenReady().then(() => {
+void app.whenReady().then(async () => {
   loadProjectState()
+  const { current } = getProjectState()
+  if (current && !(await findRepoRoot(current))) forgetProject(current)
   ipcMain.handle(IpcChannel.getCurrentProject, () => getProjectState().current)
   buildMenu()
   createWindow()
