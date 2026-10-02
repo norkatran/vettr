@@ -6,7 +6,8 @@ const api: AgentideApi = {
     const listener = (_event: IpcRendererEvent, path: string): void => callback(path)
     ipcRenderer.on(IpcChannel.projectOpened, listener)
     return () => ipcRenderer.removeListener(IpcChannel.projectOpened, listener)
-  }
+  },
+  getCurrentProject: () => ipcRenderer.invoke(IpcChannel.getCurrentProject)
 }
 
 contextBridge.exposeInMainWorld('agentide', api)

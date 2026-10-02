@@ -46,7 +46,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 
 - [x] Electron + TypeScript + React scaffold with typed IPC
 - [x] Open a project folder via a native picker, from File > Open Project (Ctrl+O) in the application menu
-- [ ] Remember the current project and recent projects across restarts
+- [x] Remember the current project and recent projects across restarts (File > Recent Projects, last 10)
 - [ ] Verify the chosen folder is a git repository, and handle the case where it is not
 - [ ] Home screen with a prompt input
 - [ ] Basic VS Code / Atom-style layout (title bar, status bar, main surface, theme)

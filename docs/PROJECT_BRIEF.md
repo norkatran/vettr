@@ -12,7 +12,7 @@ The user never browses a file tree to see what happened. They prompt, watch the 
 
 ## 2. Core user flow
 
-1. **Open a project** from the File menu (Open Project, Ctrl+O). The app shows a home screen with a prompt input.
+1. **Open a project** from the File menu (Open Project, Ctrl+O, or Recent Projects). The last project is reopened automatically on launch. The app shows a home screen with a prompt input.
 2. **Enter requirements.** The prompt is passed to an agent.
 3. **Watch the agent work.** The session view looks like any coding harness: streamed messages, tool calls and file edits. The user stays in the loop.
 4. **Open the Changes view.** A single diff/changes button shows everything that changed, laid out like a merge/pull request comparison on a git host.
@@ -36,6 +36,7 @@ The user never browses a file tree to see what happened. They prompt, watch the 
 | Sandbox | Decided | Agents run with full permissions inside a Docker container with the project bind-mounted. Docker is a hard dependency. |
 | Commit and push | Decided | Strictly user-initiated via UI buttons; the agent never commits or pushes. The container has no git credentials and `.git` is mounted read-only. |
 | First platform | Decided | Linux first. |
+| Project persistence | Decided | The last opened project is reopened on launch; opening another project makes it the new default. File > Recent Projects lists the last 10 (most recent first). Stored by the main process in `projects.json` under Electron's `userData` dir; folders that no longer exist are dropped. |
 
 ### Explicitly out of scope
 

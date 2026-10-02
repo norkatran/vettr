@@ -4,7 +4,18 @@ export function App(): React.JSX.Element {
   const [project, setProject] = useState<string | null>(null)
   const [prompt, setPrompt] = useState('')
 
-  useEffect(() => window.agentide.onProjectOpened(setProject), [])
+  useEffect(() => {
+    // Subscribe first so a pick made while the saved project loads is not overwritten.
+    let picked = false
+    const unsubscribe = window.agentide.onProjectOpened((path) => {
+      picked = true
+      setProject(path)
+    })
+    void window.agentide.getCurrentProject().then((path) => {
+      if (!picked) setProject(path)
+    })
+    return unsubscribe
+  }, [])
 
   return (
     <div className="layout">
