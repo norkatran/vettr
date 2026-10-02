@@ -19,11 +19,12 @@ Electron + TypeScript + React, built with [electron-vite](https://electron-vite.
 - `npm run typecheck` - type-check main/preload and renderer
 - `npm run lint` - lint with [Biome](https://biomejs.dev)
 - `npm test` - run the [Vitest](https://vitest.dev) suite (`*.test.ts` files under `src/`)
+- `npm run test:coverage` - run the suite with V8 coverage; fails unless every logic file is at 100% (see `vitest.config.ts` for the excluded glue)
 - `npm run format` - format with Biome (`npm run format:check` verifies formatting and lint without writing)
 
 ## CI
 
-A Forgejo Actions workflow (`.forgejo/workflows/ci.yml`) runs on pushes to `main` and on pull requests: install, typecheck, lint, format check, test and build. There are no Docker images or packages to publish.
+A Forgejo Actions workflow (`.forgejo/workflows/ci.yml`) runs on pushes to `main` and on pull requests: install, typecheck, lint, format check, test (with the 100% coverage gate) and build. There are no Docker images or packages to publish.
 
 If the Electron binary is missing after `npm install` (install scripts disabled), run `node node_modules/electron/install.js`.
 
@@ -103,7 +104,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 ### MVP release checklist
 
 - [ ] End-to-end run of the core flow: prompt, watch, review, comment, repeat, commit, push
-- [ ] Linting, formatting and automated tests for the main process and shared logic (Biome and a minimal Vitest suite are set up and run in CI; the suite needs real tests as main-process and shared logic lands)
+- [ ] Linting, formatting and automated tests for the main process and shared logic (Biome and Vitest are set up and run in CI, with a 100% per-file coverage gate on logic modules; new logic needs full tests as it lands)
 - [ ] Out-of-scope guardrails respected (no editor, language server, debugger, extensions or primary file tree)
 - [ ] Build and smoke test on the first target OS
 

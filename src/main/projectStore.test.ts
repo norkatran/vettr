@@ -92,4 +92,26 @@ describe('projectStore', () => {
     loadProjectState()
     expect(getProjectState()).toEqual({ current: null, recent: [] })
   })
+
+  it('logs and keeps in-memory state when saving fails', () => {
+    loadProjectState()
+    const a = makeDir('a')
+    // A file where the userData directory should be makes mkdir/write fail.
+    userData = join(root, 'blocker')
+    writeFileSync(userData, '')
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    setCurrentProject(a)
+
+    expect(error).toHaveBeenCalled()
+    expect(getProjectState()).toEqual({ current: a, recent: [a] })
+    error.mockRestore()
+  })
+
+  it('clears a missing current project even if it is not in the recent list', () => {
+    const a = makeDir('a')
+    writeFileSync(stateFile(), JSON.stringify({ current: join(root, 'gone'), recent: [a] }))
+    loadProjectState()
+    expect(getProjectState()).toEqual({ current: null, recent: [a] })
+  })
 })
