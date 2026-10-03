@@ -35,6 +35,12 @@ const PANEL_TEXT: Record<View, string> = {
   changes: 'No changes to review.'
 }
 
+const BADGE_MAX = 99
+
+function formatBadge(count: number): string {
+  return count > BADGE_MAX ? `${BADGE_MAX}+` : String(count)
+}
+
 const SESSION_STARTED_TEXT = 'Session in progress. Start a new one to clear it.'
 
 export function Sidebar({
@@ -46,6 +52,7 @@ export function Sidebar({
   sessionStarted
 }: SidebarProps): React.JSX.Element {
   const active = ITEMS.find((i) => i.view === view)
+  const changeCount = changes.files?.length ?? 0
   return (
     <>
       <nav className="activitybar" aria-label="Views">
@@ -62,6 +69,15 @@ export function Sidebar({
             <svg viewBox="0 0 24 24" aria-hidden="true">
               {item.icon}
             </svg>
+            {item.view === 'changes' && changeCount > 0 && (
+              <span
+                className="activity-badge"
+                role="img"
+                aria-label={`${changeCount} changed files`}
+              >
+                {formatBadge(changeCount)}
+              </span>
+            )}
           </button>
         ))}
       </nav>

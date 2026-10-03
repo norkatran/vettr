@@ -192,6 +192,22 @@ button:disabled {
   width: 2px;
   background: var(--text-strong);
 }
+.activity-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: var(--accent-hover);
+  color: var(--text-on-accent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
 .activity svg {
   width: 24px;
   height: 24px;
