@@ -977,3 +977,64 @@ button.link:hover:not(:disabled) {
 .file-menu-popup button:hover:not(:disabled) {
   background: var(--border);
 }
+
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  z-index: 200;
+}
+.palette {
+  width: min(560px, 90vw);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.palette-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--text-strong);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  font: inherit;
+  outline: none;
+}
+.palette-list {
+  max-height: 320px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.palette-list button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 5px 12px;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  border-radius: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.palette-list button.selected {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.palette-list button.selected .muted {
+  color: inherit;
+  opacity: 0.8;
+}
+.palette-empty {
+  padding: 5px 12px;
+  color: var(--text-muted);
+}

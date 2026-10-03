@@ -18,9 +18,11 @@ import {
   getChanges,
   getChangesSince,
   getRepoStatus,
+  listBranches,
   listRemotes,
   publishBranch,
   pushCurrent,
+  runGitAction,
   snapshotTree,
   stageFiles,
   unstageFiles
@@ -443,5 +445,171 @@ describe('snapshotTree and getChangesSince', () => {
     write('a.txt', 'one\n')
     await snapshotTree(root)
     expect(git('status', '--porcelain')).toBe('?? a.txt\n')
+  })
+})
+
+describe('listBranches and runGitAction', () => {
+  const git = (...args: string[]): string =>
+    execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' })
+  const write = (name: string, content: string): void => writeFileSync(join(root, name), content)
+  const commit = (name: string, content: string): void => {
+    write(name, content)
+    git('add', '.')
+    git('commit', '-q', '-m', `edit ${name}`)
+  }
+  const branch = (): string => git('branch', '--show-current').trim()
+
+  beforeEach(() => {
+    execFileSync('git', ['init', '-q', '-b', 'main', root])
+    git('config', 'user.name', 't')
+    git('config', 'user.email', 't@t')
+    commit('a.txt', 'a\n')
+  })
+
+  it('lists local and remote branches, marking the current one', async () => {
+    const remote = join(root, '..', `${root.split('/').pop()}-remote.git`)
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', remote])
+    git('remote', 'add', 'origin', remote)
+    git('push', '-q', '-u', 'origin', 'main')
+    git('branch', 'dev')
+    try {
+      expect(await listBranches(root)).toEqual([
+        { ref: 'dev', remote: false, current: false },
+        { ref: 'main', remote: false, current: true },
+        { ref: 'origin/main', remote: true, current: false }
+      ])
+    } finally {
+      rmSync(remote, { recursive: true, force: true })
+    }
+  })
+
+  it('returns no branches when the folder is not a repo', async () => {
+    expect(await listBranches(join(root, 'missing'))).toEqual([])
+  })
+
+  it('creates, switches to and deletes branches', async () => {
+    expect(await runGitAction(root, { kind: 'createBranch', name: 'topic' })).toBeNull()
+    expect(branch()).toBe('topic')
+    expect(await runGitAction(root, { kind: 'checkout', name: 'main' })).toBeNull()
+    expect(branch()).toBe('main')
+    expect(await runGitAction(root, { kind: 'deleteBranch', name: 'topic' })).toBeNull()
+    expect(git('branch', '--list', 'topic')).toBe('')
+  })
+
+  it('refuses to delete an unmerged branch', async () => {
+    git('switch', '-c', 'topic')
+    commit('b.txt', 'b\n')
+    git('switch', 'main')
+    expect(await runGitAction(root, { kind: 'deleteBranch', name: 'topic' })).toContain(
+      'not fully merged'
+    )
+  })
+
+  it('rejects bad branch names before running git', async () => {
+    expect(await runGitAction(root, { kind: 'createBranch', name: '-x' })).toMatch(/cannot start/)
+    expect(branch()).toBe('main')
+  })
+
+  it('stages and unstages everything', async () => {
+    write('b.txt', 'b\n')
+    expect(await runGitAction(root, { kind: 'stageAll' })).toBeNull()
+    expect(git('status', '--porcelain')).toBe('A  b.txt\n')
+    expect(await runGitAction(root, { kind: 'unstageAll' })).toBeNull()
+    expect(git('status', '--porcelain')).toBe('?? b.txt\n')
+  })
+
+  it('discards tracked changes and untracked files', async () => {
+    write('a.txt', 'changed\n')
+    write('new.txt', 'x\n')
+    expect(await runGitAction(root, { kind: 'discardAll' })).toBeNull()
+    expect(git('status', '--porcelain')).toBe('')
+    expect(readFileSync(join(root, 'a.txt'), 'utf8')).toBe('a\n')
+  })
+
+  it('stashes and pops changes', async () => {
+    write('a.txt', 'changed\n')
+    write('new.txt', 'x\n')
+    expect(await runGitAction(root, { kind: 'stash' })).toBeNull()
+    expect(git('status', '--porcelain')).toBe('')
+    expect(await runGitAction(root, { kind: 'stashPop' })).toBeNull()
+    expect(git('status', '--porcelain')).toContain('a.txt')
+  })
+
+  it('reports an error when there is nothing to pop', async () => {
+    expect(await runGitAction(root, { kind: 'stashPop' })).toContain('No stash')
+  })
+
+  it('fetches and pulls from a remote', async () => {
+    const remote = join(root, '..', `${root.split('/').pop()}-remote.git`)
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', remote])
+    git('remote', 'add', 'origin', remote)
+    git('push', '-q', '-u', 'origin', 'main')
+    const other = `${remote}-clone`
+    execFileSync('git', ['clone', '-q', remote, other])
+    const g = (...args: string[]): string =>
+      execFileSync('git', ['-C', other, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+        encoding: 'utf8'
+      })
+    writeFileSync(join(other, 'c.txt'), 'c\n')
+    g('add', '.')
+    g('commit', '-q', '-m', 'remote change')
+    g('push', '-q')
+    try {
+      expect(await runGitAction(root, { kind: 'fetch' })).toBeNull()
+      expect(git('rev-list', '--count', 'HEAD..origin/main').trim()).toBe('1')
+      expect(await runGitAction(root, { kind: 'pull' })).toBeNull()
+      expect(existsSync(join(root, 'c.txt'))).toBe(true)
+    } finally {
+      rmSync(remote, { recursive: true, force: true })
+      rmSync(other, { recursive: true, force: true })
+    }
+  })
+
+  it('merges a branch', async () => {
+    git('switch', '-c', 'topic')
+    commit('b.txt', 'b\n')
+    git('switch', 'main')
+    expect(await runGitAction(root, { kind: 'merge', name: 'topic' })).toBeNull()
+    expect(existsSync(join(root, 'b.txt'))).toBe(true)
+  })
+
+  it('aborts a conflicting merge and says so', async () => {
+    git('switch', '-c', 'topic')
+    commit('a.txt', 'topic\n')
+    git('switch', 'main')
+    commit('a.txt', 'main\n')
+    const message = await runGitAction(root, { kind: 'merge', name: 'topic' })
+    expect(message).toContain('The merge was aborted')
+    expect(git('status', '--porcelain')).toBe('')
+  })
+
+  it('rebases onto a branch', async () => {
+    git('switch', '-c', 'topic')
+    commit('b.txt', 'b\n')
+    git('switch', 'main')
+    commit('c.txt', 'c\n')
+    git('switch', 'topic')
+    expect(await runGitAction(root, { kind: 'rebase', name: 'main' })).toBeNull()
+    expect(git('log', '--format=%s').split('\n')[0]).toBe('edit b.txt')
+    expect(existsSync(join(root, 'c.txt'))).toBe(true)
+  })
+
+  it('aborts a conflicting rebase', async () => {
+    git('switch', '-c', 'topic')
+    commit('a.txt', 'topic\n')
+    git('switch', 'main')
+    commit('a.txt', 'main\n')
+    git('switch', 'topic')
+    expect(await runGitAction(root, { kind: 'rebase', name: 'main' })).toContain(
+      'The rebase was aborted'
+    )
+    expect(branch()).toBe('topic')
+  })
+
+  it('still reports git output when the abort itself fails', async () => {
+    // Merging a missing branch fails before any merge starts, so there is nothing to abort
+    const message = await runGitAction(root, { kind: 'merge', name: 'nope' })
+    expect(message).toContain('nope')
+    expect(message).toContain('The merge was aborted')
   })
 })

@@ -97,6 +97,17 @@ Brought forward ahead of line comments (see brief section 6.1). File-level stagi
 - [x] Notification system for git errors (hooks, auth, rejected pushes, nothing staged): dismissable popups in the top-right of the window showing git's output, kept until dismissed; the typed commit message is kept (`src/renderer/src/Notifications.tsx`, `useNotify()`)
 - [x] Push with no upstream, like VS Code's "Publish Branch": a "Publish Branch" button replaces the no-upstream label; one remote publishes straight away with `git push -u <remote> HEAD`, several show a picker (`origin` first), none shows a notification
 
+### 4b. Command palette
+
+Global git commands in a VS Code-style palette (see brief section 6.2).
+
+- [x] Palette overlay (Ctrl+Shift+P or the titlebar "Commands" button) with fuzzy search, keyboard and mouse selection, and in-palette branch pickers and text input
+- [x] Command registry (`src/renderer/src/commands.ts`): every command is always listed; one that cannot run shows an error notification
+- [x] Sync: Fetch, Pull, Push, Publish Branch
+- [x] Branches: New Branch, Change Branch (local and remote branches), Delete Branch
+- [x] Changes: Commit (opens the Changes view and focuses the message input), Stage All, Unstage All, Discard All Changes (confirmed)
+- [x] Stash, Pop Stash, Merge Branch into Current, Rebase Current Branch onto (a conflicting merge or rebase is aborted and reported)
+
 ### 5. Line comments
 
 - [x] Add a comment to a line or a range, on either side of the diff (click a line number; shift-click extends to a range; Ctrl+Enter saves)

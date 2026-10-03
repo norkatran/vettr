@@ -2,6 +2,7 @@ import { execFile, spawn } from 'node:child_process'
 import { join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { buildEditorCommand } from '@shared/editor'
+import type { GitAction } from '@shared/gitActions'
 import { IpcChannel } from '@shared/ipc'
 import {
   app,
@@ -22,9 +23,11 @@ import {
   getChanges,
   getChangesSince,
   getRepoStatus,
+  listBranches,
   listRemotes,
   publishBranch,
   pushCurrent,
+  runGitAction,
   snapshotTree,
   stageFiles,
   unstageFiles
@@ -184,6 +187,10 @@ void app.whenReady().then(async () => {
   ipcMain.handle(IpcChannel.listRemotes, (_event, project: string) => listRemotes(project))
   ipcMain.handle(IpcChannel.publish, (_event, project: string, remote: string) =>
     publishBranch(project, remote)
+  )
+  ipcMain.handle(IpcChannel.listBranches, (_event, project: string) => listBranches(project))
+  ipcMain.handle(IpcChannel.runGitAction, (_event, project: string, action: GitAction) =>
+    runGitAction(project, action)
   )
   ipcMain.handle(IpcChannel.agentStart, (_event, prompt: string) =>
     attempt(async () => {

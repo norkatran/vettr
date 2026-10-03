@@ -7,9 +7,14 @@ interface StatusBarProps {
   project: string | null
   theme: Theme
   onToggleTheme: () => void
+  /** Bump to reload the status, for git changes the file watcher cannot see (fetch, pull, push). */
+  refreshKey: number
 }
 
-function useRepoStatus(project: string | null): [RepoStatus | null, () => void] {
+function useRepoStatus(
+  project: string | null,
+  refreshKey: number
+): [RepoStatus | null, () => void] {
   const [status, setStatus] = useState<RepoStatus | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
@@ -33,7 +38,7 @@ function useRepoStatus(project: string | null): [RepoStatus | null, () => void] 
       unsubscribe()
       window.removeEventListener('focus', refresh)
     }
-  }, [project, refreshTick])
+  }, [project, refreshTick, refreshKey])
 
   return [status, () => setRefreshTick((n) => n + 1)]
 }
@@ -42,8 +47,13 @@ function repoName(project: string): string {
   return project.split(/[\\/]/).filter(Boolean).pop() ?? project
 }
 
-export function StatusBar({ project, theme, onToggleTheme }: StatusBarProps): React.JSX.Element {
-  const [status, refreshStatus] = useRepoStatus(project)
+export function StatusBar({
+  project,
+  theme,
+  onToggleTheme,
+  refreshKey
+}: StatusBarProps): React.JSX.Element {
+  const [status, refreshStatus] = useRepoStatus(project, refreshKey)
   const [pushing, setPushing] = useState(false)
   const notify = useNotify()
   const push = async (): Promise<void> => {

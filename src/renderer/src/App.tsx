@@ -1,8 +1,11 @@
 import { formatReview, pendingComments } from '@shared/comments'
 import { changedFileCount } from '@shared/diff'
 import { otherTheme, parseThemeChoice, resolveTheme, type Theme } from '@shared/theme'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Changes } from './Changes'
+import { usePalette } from './CommandPalette'
+import { runCommandPalette } from './commands'
+import { useNotify } from './Notifications'
 import { Session } from './Session'
 import { SettingsView } from './SettingsView'
 import { Sidebar, type View } from './Sidebar'
@@ -56,6 +59,9 @@ export function App(): React.JSX.Element {
   const [view, setView] = useState<View>('session')
   const [expanded, setExpanded] = useState(true)
   const [theme, toggleTheme] = useTheme()
+  const notify = useNotify()
+  const palette = usePalette()
+  const [statusRefresh, setStatusRefresh] = useState(0)
   const changes = useChanges(project)
   const count = changes.changes ? changedFileCount(changes.changes) : 0
   const session = useAgentSession(project)
@@ -99,11 +105,32 @@ export function App(): React.JSX.Element {
     setView('session')
   }
 
+  const stagedCount = changes.changes?.staged.length ?? 0
+  const openPalette = (): void => {
+    const focusCommit = (): void => {
+      setView('changes')
+      setExpanded(true)
+      setTimeout(() => document.getElementById('commit-message')?.focus(), 50)
+    }
+    void runCommandPalette({
+      ...palette.api,
+      project,
+      notify,
+      stagedCount: () => stagedCount,
+      focusCommit
+    }).finally(() => setStatusRefresh((n) => n + 1))
+  }
+  const openPaletteRef = useRef(openPalette)
+  openPaletteRef.current = openPalette
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'b' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault()
         setExpanded((v) => !v)
+      } else if (e.key.toLowerCase() === 'p' && e.shiftKey && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        openPaletteRef.current()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -128,6 +155,14 @@ export function App(): React.JSX.Element {
       <header className="titlebar">
         <span>agentide</span>
         <span className="project">{project ?? 'No project open'}</span>
+        <button
+          type="button"
+          className="titlebar-button"
+          onClick={openPalette}
+          title="Command palette (Ctrl+Shift+P)"
+        >
+          Commands
+        </button>
         {project && (
           <button
             type="button"
@@ -164,7 +199,13 @@ export function App(): React.JSX.Element {
           />
         )}
       </div>
-      <StatusBar project={project} theme={theme} onToggleTheme={toggleTheme} />
+      <StatusBar
+        project={project}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        refreshKey={statusRefresh}
+      />
+      {palette.element}
     </div>
   )
 }

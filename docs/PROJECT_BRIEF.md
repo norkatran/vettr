@@ -40,6 +40,7 @@ The user never browses a file tree to see what happened. They prompt, watch the 
 | Project persistence | Decided | The last opened project is reopened on launch; opening another project makes it the new default. File > Recent Projects lists the last 10 (most recent first). Stored by the main process in `projects.json` under Electron's `userData` dir; folders that no longer exist are dropped. |
 | Non-git folders | Decided | A project must be inside a git repository. The picker result is resolved with `git rev-parse --show-toplevel`, so a subfolder opens its repo root. Anything else is rejected with an error dialog (and dropped from recents); agentide never runs `git init` itself. The same check runs on Recent Projects clicks and on the persisted project at launch. |
 | Status bar | Decided | Footer showing repo name, branch (short SHA when detached), `↓behind ↑ahead` against the upstream (zero counts hidden; "no upstream" when none is configured) and changed-file count. The branch and ahead/behind area is clickable to push when there is something to push. Read in the main process with `git status --porcelain=v2 --branch` (using `--no-optional-locks`), refreshed on window focus rather than polling. |
+| Command palette | Decided | Ctrl+Shift+P palette listing global git commands from a registry; see 6.2. |
 | Themes | Decided | MVP ships light and dark only, defined as CSS variables switched by a `data-theme` attribute. Follows the OS by default; a status bar toggle sets an explicit choice remembered in `localStorage`. User-customisable or importable themes are post-MVP. |
 
 ### Explicitly out of scope
@@ -182,6 +183,21 @@ Decided:
 - **Push:** the status bar branch and `↑ahead`/`↓behind` area, clickable only when ahead of the upstream, which runs `git push` to the branch's upstream using the host `git`, with prompting disabled (`GIT_TERMINAL_PROMPT=0`, no askpass, SSH `BatchMode`). If any input would be required (passphrase, credentials) the push fails and the user is notified. Interactive auth is later work. The area shows the same busy state (disabled with a spinner) while pushing.
 - **Errors (built):** any failure (hooks, auth, rejected push, nothing staged) is shown as a dismissable popup in the top-right of the window with git's output (`Notifications.tsx`, `useNotify()`). Popups stay until dismissed. The message input keeps its text so nothing is lost.
 - **Publish (built):** when the branch has no upstream, the status bar shows a "Publish Branch" button, as VS Code does. With one remote it runs `git push -u <remote> HEAD` straight away, with several it shows a picker (`origin` first), and with none it shows a notification (`listRemotes` and `publishBranch` in `src/main/git.ts`, IPC `repo:remotes` and `repo:publish`). It is hidden when HEAD is detached. Same no-prompt environment and busy state as push.
+
+### 6.2 Command palette
+
+Decided:
+
+- **What it is:** a VS Code/Atom-style palette for global commands, opened with Ctrl+Shift+P or the titlebar "Commands" button. For now it lists git commands only, written `Git: <title>`; other commands (agent, view) can join the same registry later.
+- **Registry (built):** `src/renderer/src/commands.ts` holds `{id, category, title, run(ctx, project)}` entries. `run` gets a context with `pick`, `input`, `notify`, `stagedCount` and `focusCommit`. The palette (`CommandPalette.tsx`) is one overlay that serves both the command list and any follow-up step a command asks for (a branch picker, a name, a confirmation), so those steps stay in the palette. Fuzzy matching is `src/shared/fuzzy.ts`.
+- **Always listed:** commands are not hidden or disabled by context for the MVP. A command that cannot run (no project, nothing staged, no other branches, no remotes, git refusing) shows an error notification with the reason. An `enabled(ctx)` hook can be added later without changing the shape.
+- **Commands:** Fetch (`--prune`), Pull, Push, Publish Branch, New Branch, Change Branch, Delete Branch, Commit, Stage All, Unstage All, Discard All Changes, Stash, Pop Stash, Merge Branch into Current, Rebase Current Branch onto. Push and Publish reuse the status bar's calls. Out of scope: worktree commands, and pull or merge request management (the project uses Forgejo and GitLab, and supporting several hosts is too much for now).
+- **Git actions:** the rest run through one IPC call, `repo:action`, taking a `GitAction` (`src/shared/gitActions.ts`) that `planGitAction` turns into git commands; `runGitAction` in `src/main/git.ts` executes them with the no-prompt environment and `GIT_MERGE_AUTOEDIT=no`. `repo:branches` lists local and remote-tracking branches.
+- **Commit:** does not duplicate the Changes view. It shows the Changes view and focuses the commit message input (`#commit-message`), or notifies if nothing is staged.
+- **Branches:** Change Branch uses `git switch`, so git decides what happens to uncommitted changes: non-conflicting ones carry over and a conflict is reported with git's message. A remote-only branch is offered too (switching creates a tracking branch). Delete Branch uses `branch -d`, so a branch with unmerged work is refused, and it hides the current branch. Branch names starting with `-` are rejected so they cannot be read as options.
+- **Merge and rebase:** run non-interactively. If one fails (conflicts, usually) it is aborted straight away and the notification says so, because the app has no way to continue or abort a half-done merge. Resolving conflicts is a terminal job for now.
+- **Discard All Changes:** `reset --hard` plus `clean -fd` (ignored files are kept), behind a Discard/Cancel choice in the palette. It does not work before the first commit.
+- **Status refresh:** the status bar reloads after any palette command, since fetch, pull and push change remote-tracking refs that the file watcher does not see.
 
 Later:
 

@@ -1,5 +1,6 @@
 import type { AgentEvent } from './agent'
 import type { FileChange, RepoChanges } from './diff'
+import type { Branch, GitAction } from './gitActions'
 import type { RepoStatus } from './repoStatus'
 import type { Settings } from './settings'
 
@@ -34,6 +35,10 @@ export interface AgentideApi {
   listRemotes(project: string): Promise<string[]>
   /** Publish the current branch to a remote with `push -u`, setting its upstream; resolves to null or git's error output. */
   publish(project: string, remote: string): Promise<string | null>
+  /** Local and remote branches of the repo (local first), or an empty list on error. */
+  listBranches(project: string): Promise<Branch[]>
+  /** Run a command palette git action; resolves to null or git's error output. */
+  runGitAction(project: string, action: GitAction): Promise<string | null>
   /**
    * Start a session in the current project with a first prompt. Resolves to null on success or
    * to a message for the user (Docker missing, no API key, ...).
@@ -71,6 +76,8 @@ export const IpcChannel = {
   push: 'repo:push',
   listRemotes: 'repo:remotes',
   publish: 'repo:publish',
+  listBranches: 'repo:branches',
+  runGitAction: 'repo:action',
   agentStart: 'agent:start',
   agentSend: 'agent:send',
   agentInterrupt: 'agent:interrupt',

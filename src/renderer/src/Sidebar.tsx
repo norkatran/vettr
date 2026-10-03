@@ -124,6 +124,7 @@ export function Sidebar({
           {view === 'changes' && (
             <div className="commit-box">
               <textarea
+                id="commit-message"
                 placeholder="Commit message (Ctrl+Enter to commit)"
                 value={message}
                 disabled={committing || !project}

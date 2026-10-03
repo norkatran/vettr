@@ -4,6 +4,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { type FileChange, parseDiff, type RepoChanges } from '@shared/diff'
+import {
+  type Branch,
+  type GitAction,
+  invalidBranchName,
+  parseBranches,
+  planGitAction
+} from '@shared/gitActions'
 import { parseRepoStatus, type RepoStatus } from '@shared/repoStatus'
 
 const run = promisify(execFile)
@@ -217,4 +224,43 @@ export async function listRemotes(dir: string): Promise<string[]> {
  */
 export function publishBranch(dir: string, remote: string): Promise<string | null> {
   return push(dir, ['-u', '--end-of-options', remote, 'HEAD'])
+}
+
+/** Local and remote-tracking branches (local first), or an empty list on error. */
+export async function listBranches(dir: string): Promise<Branch[]> {
+  try {
+    const { stdout } = await run(
+      'git',
+      ['for-each-ref', '--format=%(HEAD)%(refname)', 'refs/heads', 'refs/remotes'],
+      { cwd: dir }
+    )
+    return parseBranches(stdout)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Run a command palette git action with the host's `git`. Prompting is disabled and merges never
+ * open an editor, since there is no terminal. Resolves to null on success or to git's message.
+ */
+export async function runGitAction(dir: string, action: GitAction): Promise<string | null> {
+  if ('name' in action) {
+    const invalid = invalidBranchName(action.name)
+    if (invalid) return invalid
+  }
+  const plan = planGitAction(action)
+  const env = { ...noPromptEnv(), GIT_MERGE_AUTOEDIT: 'no' }
+  for (const step of plan.steps) {
+    try {
+      await run('git', step, { cwd: dir, env })
+    } catch (error) {
+      const message = failureMessage(error)
+      if (!plan.abortOnFailure) return message
+      // Leave the repo as it was rather than half-merged; a failed abort just means nothing to undo
+      await run('git', plan.abortOnFailure, { cwd: dir, env }).catch(() => {})
+      return `${message}\n\n${plan.abortNote}`
+    }
+  }
+  return null
 }
