@@ -51,7 +51,8 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [x] Verify the chosen folder is a git repository (a subfolder resolves to the repo root); otherwise show an error and do not open it
 - [x] Prompt input as the empty state of the Session view (Ctrl+Enter or Start submits; disabled until a project is open; submission is a stub until the agent adapter exists)
 - [x] VS Code-style sidebar: activity bar (Session, Changes) plus a collapsible side panel (click the active icon or Ctrl+B to toggle). Session and Changes are placeholders until those surfaces exist
-- [ ] Rest of the VS Code / Atom-style layout (status bar, theme)
+- [x] Status bar: repository name, branch (or short SHA when detached), `↓behind ↑ahead` against the upstream (hidden when zero, "no upstream" when none is set), and changed-file count. Refreshes on window focus
+- [x] Light and dark themes via CSS variables: follows the OS by default, with a status bar toggle that remembers the choice
 - [ ] Navigation between the Session and Changes surfaces (the activity bar switches views; remaining work is the real Session and Changes content, and a "New session" action that returns to the prompt)
 
 ### 2. Agent session
@@ -118,5 +119,6 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [ ] Per-project sandbox image override
 - [ ] Multiple parallel agents using git worktrees
 - [ ] Additional agent adapters
+- [ ] User-customisable or importable themes (beyond the built-in light and dark)
 - [ ] Packaging, code signing and auto-update
 - [ ] Windows and Linux (or macOS) coverage beyond the first target OS

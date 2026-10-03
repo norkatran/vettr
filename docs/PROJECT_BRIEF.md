@@ -39,6 +39,8 @@ The user never browses a file tree to see what happened. They prompt, watch the 
 | First platform | Decided | Linux first. |
 | Project persistence | Decided | The last opened project is reopened on launch; opening another project makes it the new default. File > Recent Projects lists the last 10 (most recent first). Stored by the main process in `projects.json` under Electron's `userData` dir; folders that no longer exist are dropped. |
 | Non-git folders | Decided | A project must be inside a git repository. The picker result is resolved with `git rev-parse --show-toplevel`, so a subfolder opens its repo root. Anything else is rejected with an error dialog (and dropped from recents); agentide never runs `git init` itself. The same check runs on Recent Projects clicks and on the persisted project at launch. |
+| Status bar | Decided | Footer showing repo name, branch (short SHA when detached), `↓behind ↑ahead` against the upstream (zero counts hidden; "no upstream" when none is configured, with no publish action since push is user-initiated elsewhere) and changed-file count. Read in the main process with `git status --porcelain=v2 --branch` (using `--no-optional-locks`), refreshed on window focus rather than polling. |
+| Themes | Decided | MVP ships light and dark only, defined as CSS variables switched by a `data-theme` attribute. Follows the OS by default; a status bar toggle sets an explicit choice remembered in `localStorage`. User-customisable or importable themes are post-MVP. |
 
 ### Explicitly out of scope
 
