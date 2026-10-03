@@ -9,8 +9,9 @@ interface StatusBarProps {
   onToggleTheme: () => void
 }
 
-function useRepoStatus(project: string | null): RepoStatus | null {
+function useRepoStatus(project: string | null): [RepoStatus | null, () => void] {
   const [status, setStatus] = useState<RepoStatus | null>(null)
+  const [refreshTick, setRefreshTick] = useState(0)
 
   useEffect(() => {
     if (!project) {
@@ -32,9 +33,9 @@ function useRepoStatus(project: string | null): RepoStatus | null {
       unsubscribe()
       window.removeEventListener('focus', refresh)
     }
-  }, [project])
+  }, [project, refreshTick])
 
-  return status
+  return [status, () => setRefreshTick((n) => n + 1)]
 }
 
 function repoName(project: string): string {
@@ -42,7 +43,7 @@ function repoName(project: string): string {
 }
 
 export function StatusBar({ project, theme, onToggleTheme }: StatusBarProps): React.JSX.Element {
-  const status = useRepoStatus(project)
+  const [status, refreshStatus] = useRepoStatus(project)
   const [pushing, setPushing] = useState(false)
   const notify = useNotify()
   const push = async (): Promise<void> => {
@@ -50,6 +51,7 @@ export function StatusBar({ project, theme, onToggleTheme }: StatusBarProps): Re
     setPushing(true)
     const failure = await window.agentide.push(project)
     setPushing(false)
+    refreshStatus()
     if (failure) notify('Push failed', failure)
   }
   // Remotes to choose from when publishing a branch with several; null when the menu is closed
@@ -60,6 +62,7 @@ export function StatusBar({ project, theme, onToggleTheme }: StatusBarProps): Re
     setPushing(true)
     const failure = await window.agentide.publish(project, remote)
     setPushing(false)
+    refreshStatus()
     if (failure) notify('Publish failed', failure)
   }
   // Like VS Code's "Publish Branch": one remote publishes straight away, several ask which
