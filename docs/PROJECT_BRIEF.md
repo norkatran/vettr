@@ -126,11 +126,9 @@ Suggested approach:
 
 ### 5.2 Manual edits made in the external editor
 
-Because editing happens outside the app, three things are needed:
+Because editing happens outside the app, the Changes view must update when files change on disk (built: file watcher, plus refresh on window focus).
 
-- **Refresh:** The Changes view must update when files change on disk.
-- **Tell the agent:** If the user hand-edits a file mid-session, the agent's view of it is stale and it may overwrite the change. The next message to the agent should include a note listing files changed externally.
-- **Comments:** Decided rule: treat a manual edit like an agent revision, and mark comments on affected lines as outdated.
+Decided: the app does **not** track which lines or files were edited externally. Telling the agent about external edits and special-casing comments on externally edited lines were dropped: attributing an edit to the user or the agent is not trivial and the benefit is small. Comments already go outdated through snapshot re-anchoring (5.1), whoever made the edit, and the agent sees the current files on disk when it reads them.
 
 ### 5.3 Open in external editor
 
@@ -171,7 +169,7 @@ Each milestone should be usable on its own.
 3. **Agent session.** Build the sandbox image and container lifecycle. Wrap the Agent SDK behind the adapter, running in the container. Stream its output, show tool calls and file edits, and handle interrupt.
 4. **Commit and push.** Brought forward ahead of line comments because it is small, well defined and completes a usable loop (prompt, watch, review, commit, push). Changes view split into collapsible Staged and Unstaged accordions; file-level stage and unstage only (no hunk staging); commit message input and button; push to `origin`. All user-initiated. See section 6.1.
 5. **Line comments.** Add comments on lines or ranges, batch them, send to the agent as a structured message (file, line range, quoted code, comment text). Handle a second round with outdated-comment logic.
-6. **External editor.** "Open in editor" from the diff with jump-to-line, file watching, and the note to the agent about external changes.
+6. **External editor.** "Open in editor" from the diff with jump-to-line, and file watching.
 
 ### 6.1 Commit and push design
 
@@ -240,7 +238,7 @@ Claude Code, Codex CLI, OpenCode.
 
 1. ~~**Which agent to wrap first?**~~ Decided: Claude Code via the Claude Agent SDK, running inside the sandbox container. The main process talks to a runner in the container over stdio (JSON lines), behind the adapter interface. Only one adapter in the MVP.
 2. ~~**Multi-agent in the MVP?**~~ Decided: single agent. Multi-agent and worktrees are deferred.
-3. ~~**Comment rule after manual edits.**~~ Decided: mark as outdated (collapsed, not re-anchored by guessing).
+3. ~~**Comment rule after manual edits.**~~ Decided: mark as outdated (collapsed, not re-anchored by guessing). No special tracking of external edits: snapshot re-anchoring handles it regardless of who edited.
 4. ~~**Diff baseline.**~~ Decided: working tree against `HEAD`, including untracked files.
 5. ~~**Permission model.**~~ Decided: agents get full permissions inside a Docker sandbox, so there are no approval prompts in the MVP. Docker is a hard dependency. The project is bind-mounted into the container, run with the host uid/gid, with the API key sent to the runner over stdin and open network access for now. The container has no git credentials and `.git` is mounted read-only (so hooks and config cannot be tampered with). Commit and push are strictly user-initiated, via buttons in the UI, and the user writes the commit message. Approval prompts, an allowlist, restricted networking and a host-side API proxy are later work.
 6. ~~**Platform priority.**~~ Decided: Linux first.
