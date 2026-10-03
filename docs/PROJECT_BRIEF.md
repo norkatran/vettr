@@ -152,6 +152,11 @@ Code signing, auto-update, cross-platform quirks, and performance on very large 
 
 Linting and formatting use Biome (one tool for both, config in `biome.json`, matching the existing single-quote, no-semicolon style). Tests use Vitest (config in `vitest.config.ts`, files named `*.test.ts` next to the code); CI enforces 100% statement, branch, function and line coverage per file (`perFile` thresholds, V8 provider) on every logic module. Untested files count as 0% because `coverage.include` lists all of `src`. Thin glue with no extractable logic is excluded: `src/main/index.ts` (Electron bootstrap), `src/preload/index.ts` and `src/renderer/src/**` (React UI). Keep that glue thin and move logic into testable modules; revisit the renderer exclusion when component tests (jsdom and Testing Library) are added. CI runs on Forgejo Actions (`.forgejo/workflows/ci.yml`): install, typecheck, lint, format check, test with coverage and build, on pushes to `main` and on pull requests. As a desktop app there are no Docker images to build, and nothing is published yet, so there is no release job. Packaging and publishing get added with the shipping work.
 
+### 5.8 Session persistence and resume
+
+Decided: deferred past the MVP. The core loop (prompt, watch, review, comment, repeat) works within one live session, and review comments are in memory only, so a restart loses them anyway. The Agent SDK supports resuming (`resume: '<sessionId>'`, `continue`, `forkSession`, `resumeSessionAt`, plus `listSessions` and `getSessionMessages` to read a transcript back), but it cannot work today: the SDK writes transcripts under `~/.claude/projects/` inside the container, and the container runs with `--rm`, so they are deleted with it. To add it later: (1) persist a per-project transcript store on the host (under Electron's `userData`) and mount it as the container's Claude config dir, never the host's real `~/.claude`, which would expose host settings and credentials; (2) have the runner report the SDK `session_id` and have the main process remember it per project; (3) add an optional `resume` field to the `init` command that the runner passes to `query()`; (4) rebuild the transcript in the Session view from `getSessionMessages` or saved events. This would also let a session that ended unexpectedly be resumed with its history, and it pairs naturally with persisting review comments and with checkpoints (5.4).
+
+
 ## 6. Suggested build order
 
 Each milestone should be usable on its own.
@@ -180,6 +185,7 @@ Later:
 - Interactive git authentication for push
 - Hunk-level staging
 - Checkpoints and undo per agent turn
+- Resume sessions and recover transcripts (needs a persisted transcript store; see 5.8)
 - Approval prompts, allowlist and restricted sandbox networking
 - Host-side API proxy so the real key never enters the container
 - Multiple parallel agents using worktrees

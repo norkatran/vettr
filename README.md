@@ -126,6 +126,7 @@ Brought forward ahead of line comments (see brief section 6.1). File-level stagi
 - [ ] Interactive git authentication for push (passphrase and credential prompts)
 - [ ] Hunk-level staging
 - [ ] Checkpoints and undo per agent turn (the session model can take them additively: see brief section 5.4)
+- [ ] Resume sessions and recover transcripts via the SDK `resume` option: persist a per-project transcript store on the host and mount it in the container (the container is `--rm` today, so transcripts are lost), record the session ID, add `resume` to `init` (brief section 5.8)
 - [ ] Approval prompts and a user-extendable allowlist for shell commands
 - [ ] Restricted network access for the sandbox container
 - [ ] Host-side API proxy that injects the key, so the container only gets a placeholder token and `ANTHROPIC_BASE_URL` (verify the SDK honours the base URL override; bind the proxy to the Docker bridge only)
