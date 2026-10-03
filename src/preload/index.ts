@@ -7,6 +7,11 @@ const api: AgentideApi = {
     ipcRenderer.on(IpcChannel.projectOpened, listener)
     return () => ipcRenderer.removeListener(IpcChannel.projectOpened, listener)
   },
+  onRepoChanged: (callback) => {
+    const listener = (): void => callback()
+    ipcRenderer.on(IpcChannel.repoChanged, listener)
+    return () => ipcRenderer.removeListener(IpcChannel.repoChanged, listener)
+  },
   getCurrentProject: () => ipcRenderer.invoke(IpcChannel.getCurrentProject),
   getRepoStatus: (project) => ipcRenderer.invoke(IpcChannel.getRepoStatus, project),
   getChanges: (project) => ipcRenderer.invoke(IpcChannel.getChanges, project)

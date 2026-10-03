@@ -24,10 +24,12 @@ export function useChanges(project: string | null): ChangesState {
       })
     }
     refresh()
-    // No watcher yet: edits made while the app is in the background show up on return.
+    // The main process watches the tree; focus covers events missed while the watcher was down.
     window.addEventListener('focus', refresh)
+    const unsubscribe = window.agentide.onRepoChanged(refresh)
     return () => {
       stale = true
+      unsubscribe()
       window.removeEventListener('focus', refresh)
     }
   }, [project])

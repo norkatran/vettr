@@ -23,10 +23,12 @@ function useRepoStatus(project: string | null): RepoStatus | null {
       })
     }
     refresh()
-    // No polling: git changes while the app is in the background are picked up on return.
+    // No polling: the main process pushes changes, and focus covers anything missed.
     window.addEventListener('focus', refresh)
+    const unsubscribe = window.agentide.onRepoChanged(refresh)
     return () => {
       stale = true
+      unsubscribe()
       window.removeEventListener('focus', refresh)
     }
   }, [project])

@@ -62,7 +62,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [x] Read-only diff rendering with unified and split modes (plain table rendering; no syntax highlighting yet)
 - [x] Handle binary files, renames and very large diffs gracefully (files over 5000 changed lines are listed with counts but not rendered)
 - [x] Single button to open the Changes view from anywhere in a session (titlebar button with the changed-file count)
-- [ ] Watch the working tree (for example with chokidar) and refresh on change
+- [x] Watch the working tree with chokidar and refresh on change (debounced; the status bar refreshes too)
 
 ### 3. Agent session
 

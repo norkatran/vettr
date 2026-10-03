@@ -11,6 +11,7 @@ import {
 } from 'electron'
 import { findRepoRoot, getChanges, getRepoStatus } from './git'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
+import { watchTree } from './watcher'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -31,8 +32,21 @@ function createWindow(): void {
   }
 }
 
+let stopWatching: (() => Promise<void>) | null = null
+
+/** Watch `path` and tell every window when its working tree or git state changes. */
+async function watchProject(path: string): Promise<void> {
+  const previous = stopWatching
+  stopWatching = null
+  await previous?.()
+  stopWatching = await watchTree(path, () => {
+    for (const win of BrowserWindow.getAllWindows()) win.webContents.send(IpcChannel.repoChanged)
+  })
+}
+
 function activateProject(win: BrowserWindow | undefined, path: string): void {
   setCurrentProject(path)
+  void watchProject(path)
   buildMenu()
   const target = win ?? BrowserWindow.getAllWindows()[0]
   target?.webContents.send(IpcChannel.projectOpened, path)
@@ -106,6 +120,7 @@ void app.whenReady().then(async () => {
   ipcMain.handle(IpcChannel.getRepoStatus, (_event, project: string) => getRepoStatus(project))
   ipcMain.handle(IpcChannel.getChanges, (_event, project: string) => getChanges(project))
   buildMenu()
+  if (getProjectState().current) void watchProject(getProjectState().current as string)
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
