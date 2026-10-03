@@ -101,7 +101,7 @@ Brought forward ahead of line comments (see brief section 6.1). File-level stagi
 
 - [x] Add a comment to a line or a range, on either side of the diff (click a line number; shift-click extends to a range; Ctrl+Enter saves)
 - [x] Store each comment with file, side, line range, snapshot of the lines and review round (in memory for the open project; `src/shared/comments.ts`)
-- [x] Batch comments and send them to the agent as a structured message (file, line range, quoted code, comment text): "Send N comments to agent" in the Changes toolbar, enabled when a session is waiting for input; sending starts the next round
+- [x] Batch comments and send them to the agent as a structured message (file, line range, quoted code, comment text): "Send N comments to agent" in the Changes toolbar, enabled when a session is waiting for input, or when none has started (it then starts one with the review as the prompt); sending starts the next round
 - [x] Edit and delete comments before sending
 - [ ] Re-anchor comments by snapshot text when a new round arrives
 - [ ] Mark comments that no longer match as outdated and show them collapsed

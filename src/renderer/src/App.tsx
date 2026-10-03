@@ -61,13 +61,17 @@ export function App(): React.JSX.Element {
   const review = useReviewComments(project)
   const pending = pendingComments(review.comments)
   const sendBlocked =
-    session.state.status === 'idle' || session.state.status === 'ended'
-      ? 'Start a session first: comments are sent to the running agent'
+    session.state.status === 'ended'
+      ? 'The session has ended: start a new one first'
       : session.state.status === 'running'
         ? 'Wait for the agent to finish its current turn'
-        : null
+        : session.state.status === 'idle' && session.hasKey !== true
+          ? 'Add an API key or token in the Session view to start a session'
+          : null
   const sendReview = (): void => {
-    session.send(formatReview(pending))
+    // With no session yet, the review becomes the prompt that starts one.
+    if (session.state.status === 'idle') session.start(formatReview(pending))
+    else session.send(formatReview(pending))
     review.markSent(pending.map((c) => c.id))
     setView('session')
   }
