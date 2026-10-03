@@ -58,7 +58,7 @@ export function App(): React.JSX.Element {
   const changes = useChanges(project)
   const count = changes.changes ? changedFileCount(changes.changes) : 0
   const session = useAgentSession(project)
-  const review = useReviewComments(project)
+  const review = useReviewComments(project, changes.changes)
   const pending = pendingComments(review.comments)
   const status = session.state.status
   const needsNewSession = status === 'idle' || status === 'ended'

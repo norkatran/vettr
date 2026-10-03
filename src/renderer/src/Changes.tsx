@@ -7,6 +7,7 @@ import {
   type Draft,
   isSelected,
   LineComments,
+  OutdatedComments,
   useCommentUi
 } from './Comments'
 import { useNotify } from './Notifications'
@@ -107,6 +108,7 @@ export function Changes({ project, changes, review, send }: ChangesProps): React
             Send {send.pending} {send.pending === 1 ? 'comment' : 'comments'} to agent
           </button>
         </div>
+        <OutdatedComments />
         <Group
           title="Staged changes"
           action="Unstage"

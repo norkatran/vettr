@@ -889,3 +889,19 @@ button.link:hover:not(:disabled) {
   padding: 2px 10px;
   font-size: 12px;
 }
+.outdated-comments {
+  margin: 8px 12px;
+  color: var(--text-muted);
+}
+.outdated-comments summary {
+  cursor: pointer;
+}
+.comment-snapshot {
+  max-width: 640px;
+  margin: 2px 0 6px;
+  padding: 4px 8px;
+  overflow-x: auto;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  font-size: 12px;
+}

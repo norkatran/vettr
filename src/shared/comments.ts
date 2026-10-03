@@ -1,4 +1,4 @@
-import type { DiffLine, FileChange } from './diff'
+import type { DiffLine, FileChange, RepoChanges } from './diff'
 
 /** Which side of the diff a comment is on: the old file (deleted lines) or the new one. */
 export type Side = 'old' | 'new'
@@ -20,6 +20,8 @@ export interface ReviewComment {
   round: number
   /** True once it has been sent to the agent. */
   sent: boolean
+  /** True when the snapshot can no longer be found in the diff (see `reanchor`). */
+  outdated: boolean
 }
 
 /** The lines of a file's diff that exist on `side`, in order. */
@@ -43,13 +45,69 @@ export function snapshotLines(file: FileChange, side: Side, start: number, end: 
     .map((line) => line.text)
 }
 
-/** Whether a comment is anchored at (ends on) this line, which is where it is drawn. */
+/**
+ * Whether a comment is anchored at (ends on) this line, which is where it is drawn. Outdated
+ * comments are anchored nowhere; they are listed separately.
+ */
 export const endsAt = (c: ReviewComment, file: string, staged: boolean, side: Side, no: number) =>
-  c.file === file && c.staged === staged && c.side === side && c.end === no
+  !c.outdated && c.file === file && c.staged === staged && c.side === side && c.end === no
 
 /** Whether a line lies inside the range being selected or commented. */
 export const inRange = (range: { start: number; end: number }, no: number): boolean =>
   no >= range.start && no <= range.end
+
+/**
+ * Where a snapshot sits in `file` on `side`: the start line of the run of consecutive lines whose
+ * text equals the snapshot, nearest to `near` when there are several. Null when there is none (or
+ * the snapshot is empty, which proves nothing).
+ */
+function findSnapshot(
+  file: FileChange,
+  side: Side,
+  snapshot: string[],
+  near: number
+): number | null {
+  const lines = sideLines(file, side)
+  let best: number | null = null
+  for (let i = 0; i + snapshot.length <= lines.length && snapshot.length > 0; i++) {
+    const run = lines.slice(i, i + snapshot.length)
+    const first = lineNo(run[0] as DiffLine, side)
+    const matches = run.every((l, n) => l.text === snapshot[n] && lineNo(l, side) === first + n)
+    if (matches && (best === null || Math.abs(first - near) < Math.abs(best - near))) best = first
+  }
+  return best
+}
+
+/**
+ * Re-anchor comments against the current diff by matching their snapshot text, on the same
+ * staged/unstaged diff first and then the other (staging a file moves it between them). A match
+ * moves the comment to the new line numbers; no match marks it outdated, keeping its last position.
+ * Outdated is not sticky: if the text comes back the comment is anchored again. Returns the same
+ * array when nothing changed.
+ */
+export function reanchor(comments: ReviewComment[], changes: RepoChanges): ReviewComment[] {
+  let changed = false
+  const next = comments.map((c) => {
+    let moved: ReviewComment = { ...c, outdated: true }
+    for (const staged of c.staged ? [true, false] : [false, true]) {
+      const file = (staged ? changes.staged : changes.unstaged).find((f) => f.path === c.file)
+      const start = file ? findSnapshot(file, c.side, c.snapshot, c.start) : null
+      if (start !== null) {
+        moved = { ...c, staged, start, end: start + c.snapshot.length - 1, outdated: false }
+        break
+      }
+    }
+    const same =
+      moved.staged === c.staged &&
+      moved.start === c.start &&
+      moved.end === c.end &&
+      moved.outdated === c.outdated
+    if (same) return c
+    changed = true
+    return moved
+  })
+  return changed ? next : comments
+}
 
 /** Comments not yet sent to the agent. */
 export const pendingComments = (comments: ReviewComment[]): ReviewComment[] =>
@@ -73,8 +131,11 @@ export function formatReview(comments: ReviewComment[]): string {
     const lines = c.start === c.end ? `line ${c.start}` : `lines ${c.start}-${c.end}`
     const where = c.side === 'old' ? `${lines}, before your change (removed code)` : `${lines}`
     const fence = fenceFor(c.snapshot)
+    const note = c.outdated
+      ? ' (the code has since changed, so these line numbers may be stale)'
+      : ''
     return [
-      `${i + 1}. ${c.file}, ${where}:`,
+      `${i + 1}. ${c.file}, ${where}${note}:`,
       `${fence}\n${c.snapshot.join('\n')}\n${fence}`,
       c.text
     ].join('\n')

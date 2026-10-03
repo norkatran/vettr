@@ -7,9 +7,10 @@ import {
   pendingComments,
   type ReviewComment,
   rangeOf,
+  reanchor,
   snapshotLines
 } from './comments'
-import type { DiffLine, FileChange } from './diff'
+import type { DiffLine, FileChange, RepoChanges } from './diff'
 
 const line = (
   kind: DiffLine['kind'],
@@ -55,6 +56,7 @@ const comment = (over: Partial<ReviewComment> = {}): ReviewComment => ({
   text: 'Why?',
   round: 1,
   sent: false,
+  outdated: false,
   ...over
 })
 
@@ -135,5 +137,105 @@ describe('formatReview', () => {
 
   it('handles a comment with no visible snapshot', () => {
     expect(formatReview([comment({ snapshot: [] })])).toContain('```\n\n```')
+  })
+})
+
+describe('endsAt and outdated comments', () => {
+  it('never anchors an outdated comment to a line', () => {
+    expect(endsAt(comment({ outdated: true }), 'a.ts', false, 'new', 3)).toBe(false)
+  })
+})
+
+describe('reanchor', () => {
+  const changes = (unstaged: FileChange[], staged: FileChange[] = []): RepoChanges => ({
+    staged,
+    unstaged
+  })
+  const shifted = (offset: number, texts = ['TWO', 'three']): FileChange => ({
+    ...file,
+    hunks: [
+      {
+        header: '@@',
+        lines: texts.map((text, n) => line('add', null, 2 + offset + n, text))
+      }
+    ]
+  })
+
+  it('returns the same array when nothing moved', () => {
+    const comments = [comment()]
+    expect(reanchor(comments, changes([file]))).toBe(comments)
+  })
+
+  it('follows the snapshot to its new line numbers', () => {
+    const [c] = reanchor([comment()], changes([shifted(10)]))
+    expect(c).toMatchObject({ start: 12, end: 13, outdated: false })
+  })
+
+  it('prefers the match nearest the old position', () => {
+    const twice: FileChange = {
+      ...file,
+      hunks: [
+        {
+          header: '@@',
+          lines: [
+            line('add', null, 1, 'TWO'),
+            line('add', null, 2, 'three'),
+            line('add', null, 20, 'TWO'),
+            line('add', null, 21, 'three'),
+            line('add', null, 40, 'TWO'),
+            line('add', null, 41, 'three')
+          ]
+        }
+      ]
+    }
+    expect(reanchor([comment({ start: 19, end: 20 })], changes([twice]))[0]).toMatchObject({
+      start: 20,
+      end: 21
+    })
+  })
+
+  it('does not match lines that are not consecutive', () => {
+    const gap = shifted(0, ['TWO'])
+    gap.hunks[0]?.lines.push(line('add', null, 9, 'three'))
+    expect(reanchor([comment()], changes([gap]))[0]?.outdated).toBe(true)
+  })
+
+  it('marks a comment outdated when the text changed, keeping its position', () => {
+    const [c] = reanchor([comment()], changes([shifted(0, ['other', 'three'])]))
+    expect(c).toMatchObject({ start: 2, end: 3, outdated: true })
+  })
+
+  it('marks it outdated when the file left the diff or the snapshot is empty', () => {
+    expect(reanchor([comment()], changes([]))[0]?.outdated).toBe(true)
+    expect(reanchor([comment({ snapshot: [] })], changes([file]))[0]?.outdated).toBe(true)
+  })
+
+  it('revives an outdated comment when its text comes back', () => {
+    const [c] = reanchor([comment({ outdated: true })], changes([file]))
+    expect(c?.outdated).toBe(false)
+  })
+
+  it('follows a file moved between the unstaged and staged diffs', () => {
+    expect(reanchor([comment()], changes([], [file]))[0]).toMatchObject({
+      staged: true,
+      outdated: false
+    })
+    expect(reanchor([comment({ staged: true })], changes([file]))[0]).toMatchObject({
+      staged: false,
+      outdated: false
+    })
+  })
+
+  it('tolerates the same file being absent from the preferred diff only', () => {
+    const other = { ...file, path: 'b.ts' }
+    expect(reanchor([comment()], changes([other], [file]))[0]?.staged).toBe(true)
+  })
+})
+
+describe('formatReview with outdated comments', () => {
+  it('warns that the line numbers may be stale', () => {
+    expect(formatReview([comment({ outdated: true })])).toContain(
+      '1. a.ts, lines 2-3 (the code has since changed, so these line numbers may be stale):'
+    )
   })
 })

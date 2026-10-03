@@ -1,7 +1,8 @@
-import type { ReviewComment } from '@shared/comments'
+import { type ReviewComment, reanchor } from '@shared/comments'
+import type { RepoChanges } from '@shared/diff'
 import { useCallback, useEffect, useState } from 'react'
 
-export type NewComment = Omit<ReviewComment, 'id' | 'round' | 'sent'>
+export type NewComment = Omit<ReviewComment, 'id' | 'round' | 'sent' | 'outdated'>
 
 export interface Review {
   comments: ReviewComment[]
@@ -16,9 +17,10 @@ export interface Review {
 
 /**
  * The review comments for the open project. They live above the views (like the agent session)
- * so switching views keeps them, and reset when another project is opened.
+ * so switching views keeps them, and reset when another project is opened. Whenever the changes
+ * reload, comments are re-anchored to the new diff or marked outdated.
  */
-export function useReviewComments(project: string | null): Review {
+export function useReviewComments(project: string | null, changes: RepoChanges | null): Review {
   const [comments, setComments] = useState<ReviewComment[]>([])
   const [round, setRound] = useState(1)
   const [nextId, setNextId] = useState(1)
@@ -29,9 +31,16 @@ export function useReviewComments(project: string | null): Review {
     setNextId(1)
   }, [project])
 
+  useEffect(() => {
+    if (changes) setComments((prev) => reanchor(prev, changes))
+  }, [changes])
+
   const add = useCallback(
     (comment: NewComment) => {
-      setComments((prev) => [...prev, { ...comment, id: nextId, round, sent: false }])
+      setComments((prev) => [
+        ...prev,
+        { ...comment, id: nextId, round, sent: false, outdated: false }
+      ])
       setNextId((n) => n + 1)
     },
     [nextId, round]

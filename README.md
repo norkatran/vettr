@@ -103,8 +103,8 @@ Brought forward ahead of line comments (see brief section 6.1). File-level stagi
 - [x] Store each comment with file, side, line range, snapshot of the lines and review round (in memory for the open project; `src/shared/comments.ts`)
 - [x] Batch comments and send them to the agent as a structured message (file, line range, quoted code, comment text): "Send N comments to agent" in the Changes toolbar, enabled when a session is waiting for input, or when none is live (not started, or ended: it then starts a new one with the review as the prompt); sending starts the next round
 - [x] Edit and delete comments before sending
-- [ ] Re-anchor comments by snapshot text when a new round arrives
-- [ ] Mark comments that no longer match as outdated and show them collapsed
+- [x] Re-anchor comments by snapshot text whenever the changes reload (`reanchor` in `src/shared/comments.ts`; follows a file between the staged and unstaged diffs)
+- [x] Mark comments that no longer match as outdated and show them collapsed (an "N outdated comments" list above the diffs)
 - [ ] Round-to-round diff showing what the agent changed in response
 
 ### 6. External editor

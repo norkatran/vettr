@@ -89,6 +89,26 @@ function Editor({
   )
 }
 
+/** Comments whose code is gone from the diff, collapsed by default. */
+export function OutdatedComments(): React.JSX.Element | null {
+  const outdated = useCommentUi().comments.filter((c) => c.outdated)
+  if (outdated.length === 0) return null
+  return (
+    <details className="outdated-comments">
+      <summary>
+        {outdated.length} outdated {outdated.length === 1 ? 'comment' : 'comments'}
+      </summary>
+      {outdated.map((c) => (
+        <div key={c.id}>
+          <div className="comment-meta">{c.file}</div>
+          <pre className="comment-snapshot">{c.snapshot.join('\n')}</pre>
+          <CommentCard comment={c} />
+        </div>
+      ))}
+    </details>
+  )
+}
+
 function CommentCard({ comment }: { comment: ReviewComment }): React.JSX.Element {
   const ui = useCommentUi()
   const [editing, setEditing] = useState(false)
