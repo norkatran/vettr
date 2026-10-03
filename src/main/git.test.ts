@@ -13,9 +13,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  commitStaged,
   findRepoRoot,
   getChanges,
   getRepoStatus,
+  listRemotes,
+  publishBranch,
   pushCurrent,
   stageFiles,
   unstageFiles
@@ -322,5 +325,76 @@ describe('pushCurrent', () => {
 
   it('falls back to the error message when git gives no stderr', async () => {
     expect(await pushCurrent(join(root, 'missing'))).toEqual(expect.any(String))
+  })
+})
+
+describe('listRemotes and publishBranch', () => {
+  const git = (cwd: string, ...args: string[]): string =>
+    execFileSync('git', ['-C', cwd, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+      encoding: 'utf8'
+    })
+  const setup = (): { remote: string; work: string } => {
+    const remote = join(root, 'remote.git')
+    const work = join(root, 'work')
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', remote])
+    execFileSync('git', ['init', '-q', '-b', 'main', work])
+    writeFileSync(join(work, 'a.txt'), 'a\n')
+    git(work, 'add', '.')
+    git(work, 'commit', '-q', '-m', 'one')
+    return { remote, work }
+  }
+
+  it('lists remotes with origin first', async () => {
+    const { remote, work } = setup()
+    git(work, 'remote', 'add', 'backup', remote)
+    git(work, 'remote', 'add', 'origin', remote)
+    expect(await listRemotes(work)).toEqual(['origin', 'backup'])
+  })
+
+  it('lists remotes without origin as they come', async () => {
+    const { remote, work } = setup()
+    git(work, 'remote', 'add', 'backup', remote)
+    expect(await listRemotes(work)).toEqual(['backup'])
+  })
+
+  it('returns an empty list with no remotes or outside a repo', async () => {
+    const { work } = setup()
+    expect(await listRemotes(work)).toEqual([])
+    expect(await listRemotes(join(root, 'missing'))).toEqual([])
+  })
+
+  it('publishes the branch and sets its upstream', async () => {
+    const { remote, work } = setup()
+    git(work, 'remote', 'add', 'origin', remote)
+    expect(await publishBranch(work, 'origin')).toBeNull()
+    expect(git(remote, 'log', '--format=%s', 'main')).toBe('one\n')
+    expect(git(work, 'rev-parse', '--abbrev-ref', '@{u}').trim()).toBe('origin/main')
+  })
+
+  it('returns git output when publishing fails', async () => {
+    const { work } = setup()
+    expect(await publishBranch(work, 'nope')).toContain('fatal')
+  })
+})
+
+describe('commitStaged', () => {
+  const git = (cwd: string, ...args: string[]): string =>
+    execFileSync('git', ['-C', cwd, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+      encoding: 'utf8'
+    })
+
+  it('commits the staged files with the message', async () => {
+    execFileSync('git', ['init', '-q', '-b', 'main', root])
+    git(root, 'config', 'user.name', 't')
+    git(root, 'config', 'user.email', 't@t')
+    writeFileSync(join(root, 'a.txt'), 'a\n')
+    git(root, 'add', '.')
+    expect(await commitStaged(root, 'hello')).toBeNull()
+    expect(git(root, 'log', '--format=%s')).toBe('hello\n')
+  })
+
+  it('returns git output when there is nothing to commit', async () => {
+    execFileSync('git', ['init', '-q', '-b', 'main', root])
+    expect(await commitStaged(root, 'hello')).toEqual(expect.any(String))
   })
 })

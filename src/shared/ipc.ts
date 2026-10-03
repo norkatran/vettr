@@ -25,6 +25,10 @@ export interface AgentideApi {
   commitStaged(project: string, message: string): Promise<string | null>
   /** Push the current branch to its upstream; resolves to null or git's error output. */
   push(project: string): Promise<string | null>
+  /** Configured remote names, with `origin` first. */
+  listRemotes(project: string): Promise<string[]>
+  /** Publish the current branch to a remote with `push -u`, setting its upstream; resolves to null or git's error output. */
+  publish(project: string, remote: string): Promise<string | null>
   /**
    * Start a session in the current project with a first prompt. Resolves to null on success or
    * to a message for the user (Docker missing, no API key, ...).
@@ -53,6 +57,8 @@ export const IpcChannel = {
   unstageFiles: 'repo:unstage',
   commitStaged: 'repo:commit',
   push: 'repo:push',
+  listRemotes: 'repo:remotes',
+  publish: 'repo:publish',
   agentStart: 'agent:start',
   agentSend: 'agent:send',
   agentInterrupt: 'agent:interrupt',

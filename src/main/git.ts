@@ -143,23 +143,51 @@ export async function commitStaged(dir: string, message: string): Promise<string
   }
 }
 
+/** Environment that makes git fail instead of prompting, since there is no terminal. */
+function noPromptEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_ASKPASS: 'true',
+    SSH_ASKPASS: 'true',
+    GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? 'ssh -o BatchMode=yes'
+  }
+}
+
+async function push(dir: string, args: string[]): Promise<string | null> {
+  try {
+    await run('git', ['push', ...args], { cwd: dir, env: noPromptEnv() })
+    return null
+  } catch (error) {
+    return failureMessage(error)
+  }
+}
+
 /**
  * Push the current branch to its upstream using the host's `git`, credentials and config.
  * Prompting is disabled so a push that needs input (passphrase, credentials) fails rather than
  * hanging. Resolves to null on success or to git's message on failure.
  */
-export async function pushCurrent(dir: string): Promise<string | null> {
+export function pushCurrent(dir: string): Promise<string | null> {
+  return push(dir, [])
+}
+
+/** Names of the configured remotes, `origin` first; empty if there are none or on error. */
+export async function listRemotes(dir: string): Promise<string[]> {
   try {
-    const env = {
-      ...process.env,
-      GIT_TERMINAL_PROMPT: '0',
-      GIT_ASKPASS: 'true',
-      SSH_ASKPASS: 'true',
-      GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? 'ssh -o BatchMode=yes'
-    }
-    await run('git', ['push'], { cwd: dir, env })
-    return null
-  } catch (error) {
-    return failureMessage(error)
+    const { stdout } = await run('git', ['remote'], { cwd: dir })
+    const names = stdout.split('\n').filter(Boolean)
+    return names.includes('origin') ? ['origin', ...names.filter((n) => n !== 'origin')] : names
+  } catch {
+    return []
   }
+}
+
+/**
+ * Publish the current branch to `remote` and set it as the upstream (`git push -u`), like VS Code's
+ * "Publish Branch". Pushes `HEAD` so the branch name is never interpolated; `--end-of-options`
+ * stops a remote name starting with `-` being read as a flag.
+ */
+export function publishBranch(dir: string, remote: string): Promise<string | null> {
+  return push(dir, ['-u', '--end-of-options', remote, 'HEAD'])
 }

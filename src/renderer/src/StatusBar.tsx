@@ -52,6 +52,32 @@ export function StatusBar({ project, theme, onToggleTheme }: StatusBarProps): Re
     setPushing(false)
     if (failure) notify('Push failed', failure)
   }
+  // Remotes to choose from when publishing a branch with several; null when the menu is closed
+  const [remotes, setRemotes] = useState<string[] | null>(null)
+  const publishTo = async (remote: string): Promise<void> => {
+    if (!project || pushing) return
+    setRemotes(null)
+    setPushing(true)
+    const failure = await window.agentide.publish(project, remote)
+    setPushing(false)
+    if (failure) notify('Publish failed', failure)
+  }
+  // Like VS Code's "Publish Branch": one remote publishes straight away, several ask which
+  const publish = async (): Promise<void> => {
+    if (!project || pushing) return
+    if (remotes) return setRemotes(null)
+    const names = await window.agentide.listRemotes(project)
+    if (names.length === 0) {
+      notify(
+        'Cannot publish branch',
+        'This repository has no remotes. Add one with `git remote add`.'
+      )
+    } else if (names.length === 1) {
+      await publishTo(names[0] as string)
+    } else {
+      setRemotes(names)
+    }
+  }
   const target = otherTheme(theme)
 
   return (
@@ -78,6 +104,33 @@ export function StatusBar({ project, theme, onToggleTheme }: StatusBarProps): Re
                   {pushing && <span className="spinner" aria-hidden="true" />}
                 </>
               )
+              if (!status.upstream && status.branch) {
+                return (
+                  <span className="publish-wrap">
+                    <button
+                      type="button"
+                      className="status-button status-branch"
+                      disabled={pushing}
+                      onClick={() => void publish()}
+                      title="Publish this branch to a remote and set its upstream"
+                    >
+                      {content}
+                      <span>Publish Branch</span>
+                    </button>
+                    {remotes && (
+                      <ul className="remote-menu" aria-label="Publish to remote">
+                        {remotes.map((name) => (
+                          <li key={name}>
+                            <button type="button" onClick={() => void publishTo(name)}>
+                              {name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </span>
+                )
+              }
               return status.upstream && status.ahead > 0 ? (
                 <button
                   type="button"

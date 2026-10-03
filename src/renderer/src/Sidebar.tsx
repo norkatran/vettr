@@ -1,7 +1,7 @@
 import { changedFileCount, type FileChange } from '@shared/diff'
 import { useState } from 'react'
-import { useNotify } from './Notifications'
 import { FileTitle, fileAnchor, filePaths } from './Changes'
+import { useNotify } from './Notifications'
 import type { ChangesState } from './useChanges'
 
 export type View = 'session' | 'changes'

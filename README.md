@@ -95,7 +95,7 @@ Brought forward ahead of line comments (see brief section 6.1). File-level stagi
 - [x] The status bar's branch and `↑ahead`/`↓behind` area is itself the push control (clickable only when there are commits to push): runs `git push` to the branch's upstream using the host's installed `git`, credentials and config (the agent never pushes); prompting is disabled, so it fails if any input is needed. Failures show inline in the status bar until the notification system lands
 - [x] Same busy state (disabled with a spinner, "Pushing") while pushing
 - [x] Notification system for git errors (hooks, auth, rejected pushes, nothing staged): dismissable popups in the top-right of the window showing git's output, kept until dismissed; the typed commit message is kept (`src/renderer/src/Notifications.tsx`, `useNotify()`)
-- [ ] Decide how to handle push when no upstream is set (`push -u`)
+- [x] Push with no upstream, like VS Code's "Publish Branch": a "Publish Branch" button replaces the no-upstream label; one remote publishes straight away with `git push -u <remote> HEAD`, several show a picker (`origin` first), none shows a notification
 
 ### 5. Line comments
 

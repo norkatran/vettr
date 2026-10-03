@@ -20,6 +20,8 @@ import {
   findRepoRoot,
   getChanges,
   getRepoStatus,
+  listRemotes,
+  publishBranch,
   pushCurrent,
   stageFiles,
   unstageFiles
@@ -170,6 +172,10 @@ void app.whenReady().then(async () => {
     commitStaged(project, message)
   )
   ipcMain.handle(IpcChannel.push, (_event, project: string) => pushCurrent(project))
+  ipcMain.handle(IpcChannel.listRemotes, (_event, project: string) => listRemotes(project))
+  ipcMain.handle(IpcChannel.publish, (_event, project: string, remote: string) =>
+    publishBranch(project, remote)
+  )
   ipcMain.handle(IpcChannel.agentStart, (_event, prompt: string) =>
     attempt(async () => {
       const project = getProjectState().current

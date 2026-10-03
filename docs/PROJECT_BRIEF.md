@@ -171,7 +171,7 @@ Decided:
 - **Commit (built):** a textarea and Commit button at the top of the Changes side panel (`commitStaged` in `src/main/git.ts`, IPC `repo:commit`, runs `git commit -m`). Ctrl+Enter submits, like the prompt input. The message clears only on success; failures appear as notifications. The user types the message and the host `git commit` runs over the staged files only. While it runs, the message input is greyed out and disabled with a spinner beside it.
 - **Push:** the status bar branch and `↑ahead`/`↓behind` area, clickable only when ahead of the upstream, which runs `git push` to the branch's upstream using the host `git`, with prompting disabled (`GIT_TERMINAL_PROMPT=0`, no askpass, SSH `BatchMode`). If any input would be required (passphrase, credentials) the push fails and the user is notified. Interactive auth is later work. The area shows the same busy state (disabled with a spinner) while pushing.
 - **Errors (built):** any failure (hooks, auth, rejected push, nothing staged) is shown as a dismissable popup in the top-right of the window with git's output (`Notifications.tsx`, `useNotify()`). Popups stay until dismissed. The message input keeps its text so nothing is lost.
-- **Open:** push with no upstream (`push -u`). No push button is shown when no upstream is set.
+- **Publish (built):** when the branch has no upstream, the status bar shows a "Publish Branch" button, as VS Code does. With one remote it runs `git push -u <remote> HEAD` straight away, with several it shows a picker (`origin` first), and with none it shows a notification (`listRemotes` and `publishBranch` in `src/main/git.ts`, IPC `repo:remotes` and `repo:publish`). It is hidden when HEAD is detached. Same no-prompt environment and busy state as push.
 
 Later:
 
