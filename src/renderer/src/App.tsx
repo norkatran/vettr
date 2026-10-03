@@ -60,20 +60,23 @@ export function App(): React.JSX.Element {
   const session = useAgentSession(project)
   const review = useReviewComments(project)
   const pending = pendingComments(review.comments)
+  const status = session.state.status
+  const needsNewSession = status === 'idle' || status === 'ended'
   const sendBlocked =
-    session.state.status === 'ended'
-      ? 'The session has ended: start a new one first'
-      : session.state.status === 'running'
-        ? 'Wait for the agent to finish its current turn'
-        : session.state.status === 'idle' && session.hasKey !== true
-          ? 'Add an API key or token in the Session view to start a session'
-          : null
-  const sendReview = (): void => {
-    // With no session yet, the review becomes the prompt that starts one.
-    if (session.state.status === 'idle') session.start(formatReview(pending))
-    else session.send(formatReview(pending))
+    status === 'running'
+      ? 'Wait for the agent to finish its current turn'
+      : needsNewSession && session.hasKey !== true
+        ? 'Add an API key or token in the Session view to start a session'
+        : null
+  const sendReview = async (): Promise<void> => {
+    const message = formatReview(pending)
     review.markSent(pending.map((c) => c.id))
     setView('session')
+    // With no live session, the review becomes the prompt that starts a new one
+    if (needsNewSession) {
+      if (status === 'ended') await session.newSession()
+      session.start(message)
+    } else session.send(message)
   }
 
   // Clicking the active view collapses the side panel, as in VS Code.
@@ -149,7 +152,7 @@ export function App(): React.JSX.Element {
             project={project}
             changes={changes}
             review={review}
-            send={{ pending: pending.length, run: sendReview, blocked: sendBlocked }}
+            send={{ pending: pending.length, run: () => void sendReview(), blocked: sendBlocked }}
           />
         )}
       </div>
