@@ -1,3 +1,4 @@
+import { changedFileCount } from '@shared/diff'
 import { FileTitle, fileAnchor } from './Changes'
 import type { ChangesState } from './useChanges'
 
@@ -52,7 +53,7 @@ export function Sidebar({
   sessionStarted
 }: SidebarProps): React.JSX.Element {
   const active = ITEMS.find((i) => i.view === view)
-  const changeCount = changes.files?.length ?? 0
+  const changeCount = changes.changes ? changedFileCount(changes.changes) : 0
   return (
     <>
       <nav className="activitybar" aria-label="Views">
@@ -87,7 +88,7 @@ export function Sidebar({
           {view === 'changes' && changes.files && changes.files.length > 0 ? (
             <ul className="file-list">
               {changes.files.map((file, i) => (
-                <li key={`${file.oldPath ?? ''}>${file.path}`}>
+                <li key={`${i}:${file.oldPath ?? ''}>${file.path}`}>
                   <button
                     type="button"
                     className="file-link"

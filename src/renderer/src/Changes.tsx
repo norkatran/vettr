@@ -1,4 +1,4 @@
-import { type DiffLine, type FileChange, splitRows } from '@shared/diff'
+import { changedFileCount, type DiffLine, type FileChange, splitRows } from '@shared/diff'
 import { useState } from 'react'
 import type { ChangesState } from './useChanges'
 
@@ -14,17 +14,18 @@ interface ChangesProps {
 export function Changes({ project, changes }: ChangesProps): React.JSX.Element {
   const [mode, setMode] = useState<DiffMode>('unified')
   const { files, loading } = changes
+  const count = changes.changes ? changedFileCount(changes.changes) : 0
 
   if (!project) return <Empty>Open a project to see its changes.</Empty>
   if (loading && !files) return <Empty>Loading changes...</Empty>
   if (!files) return <Empty>Could not read the changes for this project.</Empty>
-  if (files.length === 0) return <Empty>No changes against HEAD.</Empty>
+  if (files.length === 0) return <Empty>No changes.</Empty>
 
   return (
     <main className="changes">
       <div className="changes-toolbar">
         <span>
-          {files.length} changed {files.length === 1 ? 'file' : 'files'}
+          {count} changed {count === 1 ? 'file' : 'files'}
         </span>
         <div className="segmented">
           {(['unified', 'split'] as const).map((m) => (
@@ -42,7 +43,7 @@ export function Changes({ project, changes }: ChangesProps): React.JSX.Element {
       </div>
       {files.map((file, i) => (
         <FileDiff
-          key={`${file.oldPath ?? ''}>${file.path}`}
+          key={`${i}:${file.oldPath ?? ''}>${file.path}`}
           id={fileAnchor(i)}
           file={file}
           mode={mode}

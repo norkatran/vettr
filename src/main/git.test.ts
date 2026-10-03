@@ -110,6 +110,8 @@ describe('getChanges', () => {
     git('add', '-A')
     git('commit', '-q', '-m', 'c')
   }
+  const paths = (files: { path: string }[] | undefined): string[] =>
+    (files ?? []).map((f) => f.path).sort()
 
   it('returns null when the folder is not a repo', async () => {
     expect(await getChanges(root)).toBeNull()
@@ -119,17 +121,32 @@ describe('getChanges', () => {
     git('init', '-q', '-b', 'main')
     write('a.txt', 'a\n')
     commitAll()
-    expect(await getChanges(root)).toEqual([])
+    expect(await getChanges(root)).toEqual({ staged: [], unstaged: [] })
   })
 
-  it('lists untracked files in a repo with no commits', async () => {
+  it('lists untracked files as unstaged in a repo with no commits', async () => {
     git('init', '-q', '-b', 'main')
     write('a.txt', 'one\ntwo\n')
-    const [file] = (await getChanges(root)) ?? []
-    expect(file).toMatchObject({ path: 'a.txt', status: 'added', additions: 2, deletions: 0 })
+    const changes = await getChanges(root)
+    expect(changes?.staged).toEqual([])
+    expect(changes?.unstaged[0]).toMatchObject({
+      path: 'a.txt',
+      status: 'added',
+      additions: 2,
+      deletions: 0
+    })
   })
 
-  it('reports modified, deleted, added and renamed files against HEAD', async () => {
+  it('lists files staged before the first commit as staged', async () => {
+    git('init', '-q', '-b', 'main')
+    write('a.txt', 'one\n')
+    git('add', 'a.txt')
+    const changes = await getChanges(root)
+    expect(changes?.staged[0]).toMatchObject({ path: 'a.txt', status: 'added' })
+    expect(changes?.unstaged).toEqual([])
+  })
+
+  it('reports modified, deleted, added and renamed files', async () => {
     git('init', '-q', '-b', 'main')
     write('mod.txt', 'a\nb\nc\n')
     write('del.txt', 'bye\n')
@@ -139,24 +156,41 @@ describe('getChanges', () => {
     rmSync(join(root, 'del.txt'))
     renameSync(join(root, 'old name.txt'), join(root, 'new name.txt'))
     write('fresh.txt', 'new\n')
-    const files = (await getChanges(root)) ?? []
-    const byPath = Object.fromEntries(files.map((f) => [f.path, f]))
+    git('add', '-A')
+    const changes = await getChanges(root)
+    const byPath = Object.fromEntries((changes?.staged ?? []).map((f) => [f.path, f]))
     expect(Object.keys(byPath).sort()).toEqual(['del.txt', 'fresh.txt', 'mod.txt', 'new name.txt'])
     expect(byPath['mod.txt']).toMatchObject({ status: 'modified', additions: 1, deletions: 1 })
     expect(byPath['del.txt']?.status).toBe('deleted')
     expect(byPath['fresh.txt']?.status).toBe('added')
     expect(byPath['new name.txt']).toMatchObject({ status: 'renamed', oldPath: 'old name.txt' })
+    expect(changes?.unstaged).toEqual([])
   })
 
-  it('includes staged changes and counts unstaged edits on top of them', async () => {
+  it('separates staged, unstaged and untracked files', async () => {
+    git('init', '-q', '-b', 'main')
+    write('staged.txt', 'a\n')
+    write('unstaged.txt', 'a\n')
+    commitAll()
+    write('staged.txt', 'b\n')
+    git('add', 'staged.txt')
+    write('unstaged.txt', 'b\n')
+    write('untracked.txt', 'x\n')
+    const changes = await getChanges(root)
+    expect(paths(changes?.staged)).toEqual(['staged.txt'])
+    expect(paths(changes?.unstaged)).toEqual(['unstaged.txt', 'untracked.txt'])
+  })
+
+  it('puts a partially staged file in both lists with only its own lines in each', async () => {
     git('init', '-q', '-b', 'main')
     write('a.txt', 'one\n')
     commitAll()
     write('a.txt', 'one\ntwo\n')
     git('add', 'a.txt')
     write('a.txt', 'one\ntwo\nthree\n')
-    const [file] = (await getChanges(root)) ?? []
-    expect(file).toMatchObject({ path: 'a.txt', additions: 2 })
+    const changes = await getChanges(root)
+    expect(changes?.staged[0]).toMatchObject({ path: 'a.txt', additions: 1 })
+    expect(changes?.unstaged[0]).toMatchObject({ path: 'a.txt', additions: 1 })
   })
 
   it('does not modify the real index or leave scratch files behind', async () => {
@@ -175,7 +209,7 @@ describe('getChanges', () => {
   it('flags binary files', async () => {
     git('init', '-q', '-b', 'main')
     writeFileSync(join(root, 'img.bin'), Buffer.from([0, 1, 2, 0, 255, 0]))
-    const [file] = (await getChanges(root)) ?? []
-    expect(file).toMatchObject({ path: 'img.bin', binary: true, hunks: [] })
+    const changes = await getChanges(root)
+    expect(changes?.unstaged[0]).toMatchObject({ path: 'img.bin', binary: true, hunks: [] })
   })
 })

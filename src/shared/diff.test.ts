@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { type DiffLine, MAX_CHANGED_LINES, parseDiff, splitRows, unquotePath } from './diff'
+import {
+  changedFileCount,
+  type DiffLine,
+  type FileChange,
+  MAX_CHANGED_LINES,
+  parseDiff,
+  splitRows,
+  unquotePath
+} from './diff'
 
 describe('parseDiff', () => {
   it('returns nothing for empty output or text before the first file', () => {
@@ -182,5 +190,27 @@ describe('splitRows', () => {
 
   it('returns no rows for no lines', () => {
     expect(splitRows([])).toEqual([])
+  })
+})
+
+describe('changedFileCount', () => {
+  const file = (path: string): FileChange => ({
+    path,
+    oldPath: null,
+    status: 'modified',
+    binary: false,
+    tooLarge: false,
+    additions: 1,
+    deletions: 0,
+    hunks: []
+  })
+
+  it('is zero with no changes', () => {
+    expect(changedFileCount({ staged: [], unstaged: [] })).toBe(0)
+  })
+
+  it('counts a partially staged file once', () => {
+    const changes = { staged: [file('a'), file('b')], unstaged: [file('b'), file('c')] }
+    expect(changedFileCount(changes)).toBe(3)
   })
 })

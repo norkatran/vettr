@@ -1,3 +1,4 @@
+import { changedFileCount } from '@shared/diff'
 import { otherTheme, parseThemeChoice, resolveTheme, type Theme } from '@shared/theme'
 import { useEffect, useState } from 'react'
 import { Changes } from './Changes'
@@ -53,6 +54,7 @@ export function App(): React.JSX.Element {
   const [expanded, setExpanded] = useState(true)
   const [theme, toggleTheme] = useTheme()
   const changes = useChanges(project)
+  const count = changes.changes ? changedFileCount(changes.changes) : 0
   const session = useAgentSession(project)
 
   // Clicking the active view collapses the side panel, as in VS Code.
@@ -107,7 +109,7 @@ export function App(): React.JSX.Element {
               setExpanded(true)
             }}
           >
-            Changes{changes.files && changes.files.length > 0 ? ` (${changes.files.length})` : ''}
+            Changes{count > 0 ? ` (${count})` : ''}
           </button>
         )}
       </header>

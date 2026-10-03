@@ -165,3 +165,16 @@ export function parseDiff(output: string): FileChange[] {
   }
   return files
 }
+
+/** The working-tree changes split by index state. A partially staged file is in both lists. */
+export interface RepoChanges {
+  /** Index against `HEAD`. */
+  staged: FileChange[]
+  /** Working tree against the index, untracked files included. */
+  unstaged: FileChange[]
+}
+
+/** Number of distinct changed paths, so a partially staged file counts once. */
+export function changedFileCount(changes: RepoChanges): number {
+  return new Set([...changes.staged, ...changes.unstaged].map((f) => f.path)).size
+}

@@ -1,5 +1,5 @@
 import type { AgentEvent } from './agent'
-import type { FileChange } from './diff'
+import type { RepoChanges } from './diff'
 import type { RepoStatus } from './repoStatus'
 
 /** Typed IPC contract shared by main, preload and renderer. */
@@ -15,8 +15,8 @@ export interface AgentideApi {
   /** Subscribe to working-tree or git changes in the open project; returns an unsubscribe function. */
   onRepoChanged(callback: () => void): () => void
   getRepoStatus(project: string): Promise<RepoStatus | null>
-  /** Working tree against HEAD, untracked files included, or null if it cannot be read. */
-  getChanges(project: string): Promise<FileChange[] | null>
+  /** Changes split into staged (index against HEAD) and unstaged (working tree against index), or null if unreadable. */
+  getChanges(project: string): Promise<RepoChanges | null>
   /**
    * Start a session in the current project with a first prompt. Resolves to null on success or
    * to a message for the user (Docker missing, no API key, ...).
