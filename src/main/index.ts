@@ -15,6 +15,7 @@ import {
   type OpenDialogOptions,
   safeStorage
 } from 'electron'
+import icon from '../../branding/icons/vettr-app-icon-512.png?asset'
 import { createApiKeyStore } from './apiKey'
 import { saveApiKey } from './apiKeyCheck'
 import { attempt, ClaudeAdapter } from './claudeAdapter'
@@ -69,6 +70,7 @@ function createWindow(): void {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

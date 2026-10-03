@@ -1,0 +1,40 @@
+{
+  "brand": "vettr",
+  "tagline": "Agent-first review IDE",
+  "brief": "A desktop app for working on a repository through agents: prompt, watch, review the diff, comment on lines, send the comments back, commit. For developers who want to review rather than edit. Calm, precise, technical, review-focused.",
+  "adjectives": ["calm", "precise", "technical", "review-focused"],
+  "criteria": "Success: unmistakable at 16 px, works in one colour, avoids robot/sparkle/bracket clichés, and says 'show me what changed'.",
+  "industry": "software",
+  "nav": ["Session", "Changes", "Docs"],
+  "brand_color": "#12A474",
+  "tile_color": "#12141A",
+  "greyscale": false,
+  "final": true,
+  "designer": "vettr",
+  "concepts": [
+    {
+      "name": "Delta Square",
+      "symbol": "../masters/vettr-symbol.svg",
+      "lockup": "../masters/vettr-horizontal.svg",
+      "stacked": "../masters/vettr-stacked.svg",
+      "avatar": "../masters/vettr-symbol.svg",
+      "symbol_on_tile": "../masters/vettr-symbol-on-dark.svg",
+      "symbol_on_dark": "../masters/vettr-symbol-on-dark.svg",
+      "lockup_on_dark": "../masters/vettr-horizontal-on-dark.svg",
+      "stacked_on_dark": "../masters/vettr-stacked-on-dark.svg",
+      "idea": "A square and its shifted copy: only the change is inked, in ink for what was and green for what is.",
+      "rationale": [
+        "It is the product in one shape: show me what changed",
+        "Two Ls with rounded, never-touching corners hold up from 16 px to a building",
+        "Ink and diff-green carry meaning: what was, what is now",
+        "The wordmark's shared t-crossbar is the same green, tying name and symbol together"
+      ]
+    }
+  ],
+  "recommendation": "Use the two-colour Delta Square everywhere it fits, the one-colour versions where it cannot.",
+  "next_steps": [
+    "Review the guidelines",
+    "Drop the icons into the app",
+    "Proof the colours in print before use"
+  ]
+}

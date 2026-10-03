@@ -7,7 +7,7 @@ import { isIgnored, watchTree } from './watcher'
 let root = ''
 
 beforeEach(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'agentide-watch-test-')))
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'vettr-watch-test-')))
 })
 
 afterEach(() => {

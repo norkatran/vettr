@@ -45,8 +45,8 @@ export function Changes({ project, changes, review, send }: ChangesProps): React
   const move = async (to: 'stage' | 'unstage', moved: FileChange[]): Promise<void> => {
     const paths = moved.flatMap(filePaths)
     const failure = await (to === 'stage'
-      ? window.agentide.stageFiles(project, paths)
-      : window.agentide.unstageFiles(project, paths))
+      ? window.vettr.stageFiles(project, paths)
+      : window.vettr.unstageFiles(project, paths))
     if (failure) notify(to === 'stage' ? 'Stage failed' : 'Unstage failed', failure)
   }
 
@@ -505,7 +505,7 @@ function FileMenu({ project, file }: { project: string; file: FileChange }): Rea
   }, [open])
   const openInEditor = async (): Promise<void> => {
     setOpen(false)
-    const failure = await window.agentide.openInEditor(project, file.path, firstLine(file))
+    const failure = await window.vettr.openInEditor(project, file.path, firstLine(file))
     if (failure) notify('Open in editor failed', failure)
   }
   return (

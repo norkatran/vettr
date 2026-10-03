@@ -70,7 +70,7 @@ async function pump(cwd: string, credential: string, resume?: string) {
         ...credentialEnv(credential),
         // Our own temp dir: Claude Code refuses /tmp/claude-<uid> when it is root-owned, which
         // happens if the project's host path (mounted at the same path) runs through /tmp
-        CLAUDE_CODE_TMPDIR: mkdtempSync(join(tmpdir(), 'agentide-'))
+        CLAUDE_CODE_TMPDIR: mkdtempSync(join(tmpdir(), 'vettr-'))
       },
       stderr: (data) => process.stderr.write(data)
     }

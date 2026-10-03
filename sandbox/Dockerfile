@@ -8,11 +8,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 ARG SDK_VERSION
-WORKDIR /opt/agentide
+WORKDIR /opt/vettr
 RUN npm init -y >/dev/null && npm install --omit=dev "@anthropic-ai/claude-agent-sdk@${SDK_VERSION}"
 
 COPY dist/runner.mjs ./runner.mjs
 
 # The container runs as the host uid/gid (docker run --user), so give it a writable home at run time
 ENV HOME=/tmp/home
-ENTRYPOINT ["node", "/opt/agentide/runner.mjs"]
+ENTRYPOINT ["node", "/opt/vettr/runner.mjs"]

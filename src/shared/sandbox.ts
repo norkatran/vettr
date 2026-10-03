@@ -1,7 +1,7 @@
-export const SANDBOX_IMAGE = 'agentide-sandbox'
+export const SANDBOX_IMAGE = 'vettr-sandbox'
 
 /** Where the transcripts dir is mounted inside the container; only this dir of the config is shared. */
-export const CONTAINER_CONFIG_DIR = '/agentide-config'
+export const CONTAINER_CONFIG_DIR = '/vettr-config'
 
 export interface RunOptions {
   name: string

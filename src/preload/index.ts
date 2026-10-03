@@ -1,8 +1,8 @@
 import type { AgentEvent } from '@shared/agent'
-import { type AgentideApi, IpcChannel } from '@shared/ipc'
+import { IpcChannel, type VettrApi } from '@shared/ipc'
 import { contextBridge, type IpcRendererEvent, ipcRenderer } from 'electron'
 
-const api: AgentideApi = {
+const api: VettrApi = {
   onProjectOpened: (callback) => {
     const listener = (_event: IpcRendererEvent, path: string): void => callback(path)
     ipcRenderer.on(IpcChannel.projectOpened, listener)
@@ -45,4 +45,4 @@ const api: AgentideApi = {
   setSettings: (settings) => ipcRenderer.invoke(IpcChannel.setSettings, settings)
 }
 
-contextBridge.exposeInMainWorld('agentide', api)
+contextBridge.exposeInMainWorld('vettr', api)

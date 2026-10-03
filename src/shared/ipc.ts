@@ -7,7 +7,7 @@ import type { SessionInfo } from './sessions'
 import type { Settings } from './settings'
 
 /** Typed IPC contract shared by main, preload and renderer. */
-export interface AgentideApi {
+export interface VettrApi {
   /**
    * Subscribe to projects chosen via File > Open Project or Open Recent. The callback gets
    * the chosen folder path; returns an unsubscribe function.

@@ -45,7 +45,7 @@ const failed = (ctx: CommandContext, title: string, failure: string | null): voi
 const act =
   (title: string, action: GitAction): Command['run'] =>
   async (ctx, project) =>
-    failed(ctx, title, await window.agentide.runGitAction(project, action))
+    failed(ctx, title, await window.vettr.runGitAction(project, action))
 
 const branchItem = (b: Branch): PaletteItem => ({
   id: b.ref,
@@ -62,15 +62,15 @@ const withBranch =
     build: (branch: Branch) => GitAction
   ): Command['run'] =>
   async (ctx, project) => {
-    const choices = filter(await window.agentide.listBranches(project))
+    const choices = filter(await window.vettr.listBranches(project))
     if (choices.length === 0) return ctx.notify(`${title} failed`, 'There are no other branches.')
     const ref = await ctx.pick(placeholder, choices.map(branchItem))
     const branch = choices.find((b) => b.ref === ref)
-    if (branch) failed(ctx, title, await window.agentide.runGitAction(project, build(branch)))
+    if (branch) failed(ctx, title, await window.vettr.runGitAction(project, build(branch)))
   }
 
 const publish: Command['run'] = async (ctx, project) => {
-  const remotes = await window.agentide.listRemotes(project)
+  const remotes = await window.vettr.listRemotes(project)
   if (remotes.length === 0) {
     return ctx.notify(
       'Cannot publish branch',
@@ -84,7 +84,7 @@ const publish: Command['run'] = async (ctx, project) => {
           'Publish to which remote?',
           remotes.map((r) => ({ id: r, label: r }))
         )
-  if (remote) failed(ctx, 'Publish', await window.agentide.publish(project, remote))
+  if (remote) failed(ctx, 'Publish', await window.vettr.publish(project, remote))
 }
 
 const newBranch: Command['run'] = async (ctx, project) => {
@@ -95,7 +95,7 @@ const newBranch: Command['run'] = async (ctx, project) => {
   failed(
     ctx,
     'New branch',
-    await window.agentide.runGitAction(project, { kind: 'createBranch', name })
+    await window.vettr.runGitAction(project, { kind: 'createBranch', name })
   )
 }
 
@@ -108,7 +108,7 @@ const discardAll: Command['run'] = async (ctx, project) => {
     ]
   )
   if (answer === 'discard')
-    failed(ctx, 'Discard', await window.agentide.runGitAction(project, { kind: 'discardAll' }))
+    failed(ctx, 'Discard', await window.vettr.runGitAction(project, { kind: 'discardAll' }))
 }
 
 const commit: Command['run'] = async (ctx) => {
@@ -123,7 +123,7 @@ const commit: Command['run'] = async (ctx) => {
 
 /** Search the project's stored sessions in a wide palette. Picking one replaces the current session. */
 const listSessions: Command['run'] = async (ctx) => {
-  const sessions = await window.agentide.listSessions()
+  const sessions = await window.vettr.listSessions()
   if (sessions.length === 0)
     return ctx.notify('No sessions', 'This project has no stored sessions.')
   const id = await ctx.pick(
@@ -170,7 +170,7 @@ export const commands: Command[] = [
     id: 'push',
     category: 'Git',
     title: 'Push',
-    run: async (ctx, project) => failed(ctx, 'Push', await window.agentide.push(project))
+    run: async (ctx, project) => failed(ctx, 'Push', await window.vettr.push(project))
   },
   { id: 'publish', category: 'Git', title: 'Publish Branch', run: publish },
   { id: 'new-branch', category: 'Git', title: 'New Branch', run: newBranch },

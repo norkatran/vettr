@@ -13,7 +13,7 @@ export function useSessionList(project: string | null, refreshKey: string): Sess
       return
     }
     let current = true
-    void window.agentide.listSessions().then((list) => {
+    void window.vettr.listSessions().then((list) => {
       if (current) setSessions(list)
     })
     return () => {

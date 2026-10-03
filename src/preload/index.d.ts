@@ -1,7 +1,7 @@
-import type { AgentideApi } from '@shared/ipc'
+import type { VettrApi } from '@shared/ipc'
 
 declare global {
   interface Window {
-    agentide: AgentideApi
+    vettr: VettrApi
   }
 }

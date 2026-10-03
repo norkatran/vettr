@@ -25,14 +25,14 @@ function useRepoStatus(
     }
     let stale = false
     const refresh = (): void => {
-      void window.agentide.getRepoStatus(project).then((next) => {
+      void window.vettr.getRepoStatus(project).then((next) => {
         if (!stale) setStatus(next)
       })
     }
     refresh()
     // No polling: the main process pushes changes, and focus covers anything missed.
     window.addEventListener('focus', refresh)
-    const unsubscribe = window.agentide.onRepoChanged(refresh)
+    const unsubscribe = window.vettr.onRepoChanged(refresh)
     return () => {
       stale = true
       unsubscribe()
@@ -59,7 +59,7 @@ export function StatusBar({
   const push = async (): Promise<void> => {
     if (!project || pushing) return
     setPushing(true)
-    const failure = await window.agentide.push(project)
+    const failure = await window.vettr.push(project)
     setPushing(false)
     refreshStatus()
     if (failure) notify('Push failed', failure)
@@ -70,7 +70,7 @@ export function StatusBar({
     if (!project || pushing) return
     setRemotes(null)
     setPushing(true)
-    const failure = await window.agentide.publish(project, remote)
+    const failure = await window.vettr.publish(project, remote)
     setPushing(false)
     refreshStatus()
     if (failure) notify('Publish failed', failure)
@@ -79,7 +79,7 @@ export function StatusBar({
   const publish = async (): Promise<void> => {
     if (!project || pushing) return
     if (remotes) return setRemotes(null)
-    const names = await window.agentide.listRemotes(project)
+    const names = await window.vettr.listRemotes(project)
     if (names.length === 0) {
       notify(
         'Cannot publish branch',

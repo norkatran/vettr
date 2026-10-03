@@ -70,7 +70,7 @@ describe('loadSession', () => {
   })
 
   it('reads a real SDK transcript file', async () => {
-    const config = mkdtempSync(join(tmpdir(), 'agentide-cfg-'))
+    const config = mkdtempSync(join(tmpdir(), 'vettr-cfg-'))
     const project = '/work/demo'
     const dir = join(config, 'projects', '-work-demo')
     mkdirSync(dir, { recursive: true })

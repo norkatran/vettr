@@ -32,14 +32,14 @@ export function useChanges(project: string | null): ChangesState {
     let stale = false
     setState({ ...EMPTY, loading: true })
     const refresh = (): void => {
-      void window.agentide.getChanges(project).then((changes) => {
+      void window.vettr.getChanges(project).then((changes) => {
         if (!stale) setState(loaded(changes))
       })
     }
     refresh()
     // The main process watches the tree; focus covers events missed while the watcher was down.
     window.addEventListener('focus', refresh)
-    const unsubscribe = window.agentide.onRepoChanged(refresh)
+    const unsubscribe = window.vettr.onRepoChanged(refresh)
     return () => {
       stale = true
       unsubscribe()
@@ -62,13 +62,13 @@ export function useChangesSince(project: string | null, tree: string | null): Fi
     if (!project || !tree) return
     let stale = false
     const refresh = (): void => {
-      void window.agentide.getChangesSince(project, tree).then((next) => {
+      void window.vettr.getChangesSince(project, tree).then((next) => {
         if (!stale) setFiles(next)
       })
     }
     refresh()
     window.addEventListener('focus', refresh)
-    const unsubscribe = window.agentide.onRepoChanged(refresh)
+    const unsubscribe = window.vettr.onRepoChanged(refresh)
     return () => {
       stale = true
       unsubscribe()

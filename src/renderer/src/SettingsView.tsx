@@ -10,7 +10,7 @@ export function SettingsView(): React.JSX.Element {
   const [custom, setCustom] = useState(false)
 
   useEffect(() => {
-    void window.agentide.getSettings().then((s) => {
+    void window.vettr.getSettings().then((s) => {
       setSettings(s)
       setCustom(s.editorCommand !== '' && matchPreset(s.editorCommand) === null)
     })
@@ -20,7 +20,7 @@ export function SettingsView(): React.JSX.Element {
 
   const save = (next: Settings): void => {
     setSettings(next)
-    void window.agentide.setSettings(next).then(setSettings)
+    void window.vettr.setSettings(next).then(setSettings)
   }
   const command = settings.editorCommand
   const selected = custom ? CUSTOM : (matchPreset(command)?.command ?? NONE)

@@ -29,9 +29,9 @@ export function useAgentSession(project: string | null): AgentSession {
   const resumeId = useRef<string | null>(null)
   const [hasKey, setHasKey] = useState<boolean | null>(null)
 
-  useEffect(() => window.agentide.onAgentEvent((event) => dispatch({ type: 'event', event })), [])
+  useEffect(() => window.vettr.onAgentEvent((event) => dispatch({ type: 'event', event })), [])
   useEffect(() => {
-    void window.agentide.hasApiKey().then(setHasKey)
+    void window.vettr.hasApiKey().then(setHasKey)
   }, [])
   useEffect(() => {
     if (state.status === 'ended' && state.sessionId) resumeId.current = state.sessionId
@@ -43,7 +43,7 @@ export function useAgentSession(project: string | null): AgentSession {
 
   const start = useCallback((prompt: string) => {
     dispatch({ type: 'sent', text: prompt })
-    void window.agentide.agentStart(prompt).then((message) => {
+    void window.vettr.agentStart(prompt).then((message) => {
       if (message) dispatch({ type: 'start-failed', message, prompt })
     })
   }, [])
@@ -52,9 +52,9 @@ export function useAgentSession(project: string | null): AgentSession {
     const id = resumeId.current
     if (id) {
       dispatch({ type: 'resumed', text: message })
-      void window.agentide
+      void window.vettr
         .agentStop()
-        .then(() => window.agentide.agentStart(message, id))
+        .then(() => window.vettr.agentStart(message, id))
         .then((error) => {
           if (error) dispatch({ type: 'send-failed', message: error })
           else if (resumeId.current === id) resumeId.current = null
@@ -62,33 +62,33 @@ export function useAgentSession(project: string | null): AgentSession {
       return
     }
     dispatch({ type: 'sent', text: message })
-    void window.agentide.agentSend(message).then((error) => {
+    void window.vettr.agentSend(message).then((error) => {
       if (error) dispatch({ type: 'send-failed', message: error })
     })
   }, [])
 
   const interrupt = useCallback(() => {
     dispatch({ type: 'interrupt-requested' })
-    void window.agentide.agentInterrupt()
+    void window.vettr.agentInterrupt()
   }, [])
 
   const newSession = useCallback(async () => {
-    await window.agentide.agentStop()
+    await window.vettr.agentStop()
     resumeId.current = null
     dispatch({ type: 'reset' })
   }, [])
 
   const openSession = useCallback(async (id: string) => {
     if (stateRef.current.status === 'running') return
-    const loaded = await window.agentide.loadSession(id)
+    const loaded = await window.vettr.loadSession(id)
     if (!loaded) return
-    await window.agentide.agentStop()
+    await window.vettr.agentStop()
     resumeId.current = loaded.sessionId ?? id
     dispatch({ type: 'load', state: loaded })
   }, [])
 
   const saveKey = useCallback(async (key: string) => {
-    const error = await window.agentide.setApiKey(key)
+    const error = await window.vettr.setApiKey(key)
     if (!error) setHasKey(true)
     return error
   }, [])

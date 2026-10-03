@@ -78,15 +78,15 @@ export function Sidebar({
     if (!project) return
     const paths = filePaths(file)
     const failure = await (staged
-      ? window.agentide.unstageFiles(project, paths)
-      : window.agentide.stageFiles(project, paths))
+      ? window.vettr.unstageFiles(project, paths)
+      : window.vettr.stageFiles(project, paths))
     if (failure) notify(staged ? 'Unstage failed' : 'Stage failed', failure)
   }
   const canCommit = !!project && stagedCount > 0 && message.trim() !== '' && !committing
   const commit = async (): Promise<void> => {
     if (!project || !canCommit) return
     setCommitting(true)
-    const failure = await window.agentide.commitStaged(project, message)
+    const failure = await window.vettr.commitStaged(project, message)
     setCommitting(false)
     // Keep the typed message on failure so nothing is lost
     if (failure === null) setMessage('')

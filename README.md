@@ -1,17 +1,18 @@
-# agentide
+# vettr
 
-Agent-first review IDE (pronounced like "agentic"). See [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md) for the concept, decisions and build order.
+Agent-first review IDE (pronounced "vetter"). See [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md) for the concept, decisions and build order.
 
 Electron + TypeScript + React, built with [electron-vite](https://electron-vite.org).
 
 ## Layout
 
 - `src/main` - main process (filesystem, git, agent processes)
-- `src/preload` - context-isolated bridge exposing `window.agentide`
+- `src/preload` - context-isolated bridge exposing `window.vettr`
 - `src/renderer` - React UI
 - `src/runner` - the runner that executes inside the sandbox container and drives the Agent SDK (bundled by esbuild, not part of the Electron app)
 - `src/shared` - types shared across processes (typed IPC contract, agent protocol)
 - `sandbox` - Dockerfile for the agent sandbox image
+- `branding` - logo, wordmark, icons and usage guidelines (see [branding/README.md](branding/README.md)); regenerate with `python3 branding/build_logo.py && branding/build_assets.sh`
 
 ## Scripts
 
@@ -19,7 +20,7 @@ Electron + TypeScript + React, built with [electron-vite](https://electron-vite.
 - `npm run build` - production build into `out/`
 - `npm start` - preview the production build
 - `npm run typecheck` - type-check main/preload and renderer
-- `npm run build:sandbox` - bundle the runner and build the `agentide-sandbox` Docker image (needs Docker)
+- `npm run build:sandbox` - bundle the runner and build the `vettr-sandbox` Docker image (needs Docker)
 - `npm run lint` - lint with [Biome](https://biomejs.dev)
 - `npm test` - run the [Vitest](https://vitest.dev) suite (`*.test.ts` files under `src/`)
 - `npm run test:coverage` - run the suite with V8 coverage; fails unless every logic file is at 100% (see `vitest.config.ts` for the excluded glue)
@@ -76,7 +77,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [x] Credential: an API key or a Claude OAuth token (`claude setup-token`) entered in the Session view; API keys are checked against the API when saved, stored with Electron `safeStorage` and sent to the runner over stdin in `init`
 - [x] Implement the first adapter in the main process, behind the interface, driving the in-container runner (`src/main/claudeAdapter.ts`)
 - [x] Prevent the agent from committing, pushing or tampering with git: mount `.git` read-only (so no commits, and no edits to hooks or config that would later run on the host with the user's credentials), no git credentials in the container, and handle worktree/submodule layouts where `.git` is a file or lives elsewhere
-- [x] Stream agent events to the renderer over typed IPC (`agent:event`, plus start, send, interrupt and stop calls on `window.agentide`)
+- [x] Stream agent events to the renderer over typed IPC (`agent:event`, plus start, send, interrupt and stop calls on `window.vettr`)
 - [x] Session view: streamed assistant text
 - [x] Session view: tool calls (started and finished) and file edits
 - [x] Interrupt the current turn (Stop button; see the real-API check below)
@@ -140,11 +141,22 @@ Sessions survive restarts and can be resumed (see brief section 5.8).
 
 - [x] Per-project transcript store on the host, mounted into the container as the Claude config dir (`src/main/transcripts.ts`, `src/shared/sandbox.ts`)
 - [x] Runner reports the SDK session ID (`session-started` event, kept in the session state) and accepts `resume` in `init` (`start(prompt, cwd, resume?)` on the adapter; not yet reachable from the UI or IPC)
-- [x] List a project's sessions (`listSessions`) over IPC (`listSessions()` on `window.agentide`; `src/main/sessions.ts`)
+- [x] List a project's sessions (`listSessions`) over IPC (`listSessions()` on `window.vettr`; `src/main/sessions.ts`)
 - [x] Replay a stored session (`getSessionMessages`) into Session view state (`loadSession(id)` over IPC; `src/main/replay.ts`; tested against a transcript file read by the real SDK; not yet reachable from the UI)
 - [x] Session list in the Session side panel under "New session" (`[timestamp] title`, truncated with an ellipsis; read-only for now, reloads when the live session starts, finishes or changes)
 - [x] Open a stored session by clicking it in the list or picking it from the "Session: List Sessions" palette command: it stops any live agent, replaces the current session and rewrites the chat display from the replayed transcript (ignored while the agent is working). Sending a follow-up to it resumes it (see below)
 - [x] Resuming a stored session, or one whose agent ended or crashed, by sending a message: the main process restarts the sandbox with the SDK `resume` option (`agentStart(prompt, resume?)` over IPC) and the transcript gets a "Session resumed" notice
+
+### Branding
+
+Logo kit lives in `branding/` (brief: Decisions, Brand).
+
+- [x] Logo (Delta Square), wordmark, horizontal and stacked lockups, small-size cut, on-dark and one-colour versions
+- [x] App icon, favicon and icon PNG set, brand board and usage guidelines
+- [x] Use the app icon for the Electron window (`BrowserWindow` `icon`)
+- [ ] Use the app icon in packaging (no packager yet; see Later)
+- [ ] Trademark / similarity search and print proofing before launch
+- [ ] macOS `.icns` and Windows `.ico` app icons (when those platforms are targeted)
 
 ### Later
 

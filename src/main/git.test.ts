@@ -31,7 +31,7 @@ import {
 let root = ''
 
 beforeEach(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'agentide-git-test-')))
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'vettr-git-test-')))
 })
 
 afterEach(() => {

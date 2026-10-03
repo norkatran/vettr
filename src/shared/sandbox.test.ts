@@ -23,8 +23,8 @@ describe('buildRunArgs', () => {
 
   it('mounts the transcripts dir as the Claude config dir', () => {
     const args = buildRunArgs(base).join(' ')
-    expect(args).toContain('-v /data/t:/agentide-config')
-    expect(args).toContain('-e CLAUDE_CONFIG_DIR=/agentide-config')
+    expect(args).toContain('-v /data/t:/vettr-config')
+    expect(args).toContain('-e CLAUDE_CONFIG_DIR=/vettr-config')
   })
 
   it('drops capabilities and ends with the image so the runner gets no extra args', () => {
@@ -42,7 +42,7 @@ describe('buildRunArgs', () => {
     })
     const mounts = args.filter((_, i) => args[i - 1] === '-v')
     expect(mounts).toEqual([
-      '/data/t:/agentide-config',
+      '/data/t:/vettr-config',
       '/work/p:/work/p',
       '/work/p/.git:/work/p/.git:ro',
       '/main/.git/worktrees/x:/main/.git/worktrees/x:ro'

@@ -1,4 +1,4 @@
-# agentide
+# vettr
 
 Agent-first review IDE built with Electron + TypeScript + React.
 

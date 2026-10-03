@@ -15,7 +15,7 @@ import { useChanges } from './useChanges'
 import { useReviewComments } from './useReviewComments'
 import { useSessionList } from './useSessionList'
 
-const THEME_KEY = 'agentide.theme'
+const THEME_KEY = 'vettr.theme'
 const darkQuery = '(prefers-color-scheme: dark)'
 
 function storedThemeChoice(): Theme | null {
@@ -80,7 +80,7 @@ export function App(): React.JSX.Element {
   const sendReview = async (): Promise<void> => {
     const message = formatReview(pending)
     // Record the tree before the agent touches it, so the next round can show what it changed
-    const baseline = project ? await window.agentide.snapshotTree(project) : null
+    const baseline = project ? await window.vettr.snapshotTree(project) : null
     review.markSent(
       pending.map((c) => c.id),
       baseline
@@ -160,11 +160,11 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     // Subscribe first so a pick made while the saved project loads is not overwritten.
     let picked = false
-    const unsubscribe = window.agentide.onProjectOpened((path) => {
+    const unsubscribe = window.vettr.onProjectOpened((path) => {
       picked = true
       setProject(path)
     })
-    void window.agentide.getCurrentProject().then((path) => {
+    void window.vettr.getCurrentProject().then((path) => {
       if (!picked) setProject(path)
     })
     return unsubscribe
@@ -173,7 +173,7 @@ export function App(): React.JSX.Element {
   return (
     <div className="layout">
       <header className="titlebar">
-        <span>agentide</span>
+        <span>vettr</span>
         <span className="project">{project ?? 'No project open'}</span>
         <button
           type="button"

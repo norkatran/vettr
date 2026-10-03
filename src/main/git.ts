@@ -93,7 +93,7 @@ async function withScratchIndex<T>(
     const indexPath = (
       await git(['rev-parse', '--path-format=absolute', '--git-path', 'index'])
     ).trim()
-    scratch = await mkdtemp(join(tmpdir(), 'agentide-index-'))
+    scratch = await mkdtemp(join(tmpdir(), 'vettr-index-'))
     const tempIndex = join(scratch, 'index')
     // A missing index (fresh repo) is fine: git starts from an empty one
     await copyFile(indexPath, tempIndex).catch(() => undefined)

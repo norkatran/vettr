@@ -13,7 +13,7 @@ let root = ''
 const file = (): string => join(userData, 'settings.json')
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'agentide-test-'))
+  root = mkdtempSync(join(tmpdir(), 'vettr-test-'))
   userData = join(root, 'userData')
   mkdirSync(userData)
 })

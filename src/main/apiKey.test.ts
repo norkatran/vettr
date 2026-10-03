@@ -14,7 +14,7 @@ const crypto = (available = true): KeyCrypto => ({
 let dir = ''
 let file = ''
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'agentide-key-'))
+  dir = await mkdtemp(join(tmpdir(), 'vettr-key-'))
   file = join(dir, 'nested', 'apikey')
 })
 afterEach(() => rm(dir, { recursive: true, force: true }))

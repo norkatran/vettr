@@ -3,3 +3,4 @@ out
 dist
 *.log
 coverage
+branding/__pycache__

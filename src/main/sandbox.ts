@@ -73,7 +73,7 @@ export async function startSandbox({
   // Made by the host user before docker runs, so the container user (same uid) can write to it
   await mkdir(transcriptsDir, { recursive: true })
   const args = buildRunArgs({
-    name: `agentide-${randomUUID().slice(0, 8)}`,
+    name: `vettr-${randomUUID().slice(0, 8)}`,
     project,
     readOnlyPaths: await readOnlyGitPaths(project),
     transcriptsDir,

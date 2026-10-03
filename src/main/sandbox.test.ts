@@ -8,7 +8,7 @@ import { checkDocker, readOnlyGitPaths, startSandbox, stopSandbox } from './sand
 
 let root = ''
 beforeEach(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'agentide-sandbox-test-')))
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'vettr-sandbox-test-')))
 })
 afterEach(() => {
   rmSync(root, { recursive: true, force: true })
@@ -76,9 +76,9 @@ describe('startSandbox', () => {
     expect(args).toContain(`${root}:${root}`)
     expect(args).toContain(`${join(root, '.git')}:${join(root, '.git')}:ro`)
     expect(args).toContain('1:2')
-    expect(args).toContain(`${transcriptsDir}:/agentide-config`)
+    expect(args).toContain(`${transcriptsDir}:/vettr-config`)
     expect(existsSync(transcriptsDir)).toBe(true)
-    expect(args[args.indexOf('--name') + 1]).toMatch(/^agentide-[0-9a-f]{8}$/)
+    expect(args[args.indexOf('--name') + 1]).toMatch(/^vettr-[0-9a-f]{8}$/)
   })
 })
 
