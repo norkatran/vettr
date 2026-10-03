@@ -12,7 +12,7 @@ The user never browses a file tree to see what happened. They prompt, watch the 
 
 ## 2. Core user flow
 
-1. **Open a project** from the File menu (Open Project, Ctrl+O, or Recent Projects). The last project is reopened automatically on launch. The app shows a home screen with a prompt input.
+1. **Open a project** from the File menu (Open Project, Ctrl+O, or Recent Projects). The last project is reopened automatically on launch. The app shows the Session view in its empty state: a prompt input.
 2. **Enter requirements.** The prompt is passed to an agent.
 3. **Watch the agent work.** The session view looks like any coding harness: streamed messages, tool calls and file edits. The user stays in the loop.
 4. **Open the Changes view.** A single diff/changes button shows everything that changed, laid out like a merge/pull request comparison on a git host.
@@ -27,8 +27,9 @@ The user never browses a file tree to see what happened. They prompt, watch the 
 | Platform | Decided | Electron desktop app, not a browser tab. You select the app and you're in it. |
 | Language | Decided | TypeScript throughout (strongly preferred). |
 | Look and feel | Decided | VS Code / Atom-style UI. |
-| Paradigm | Decided | Agent-first. The prompt home screen is the entry point. |
+| Paradigm | Decided | Agent-first. The prompt (the empty state of the Session view) is the entry point. |
 | Navigating changes | Decided | A diff/changes view replaces the sidebar file tree as the main way to see what happened. |
+| Sidebar | Decided | VS Code-style activity bar (Session, Changes) with a collapsible side panel (click the active icon or Ctrl+B). It is for switching surfaces and surface-specific lists, not a project file tree. |
 | Review loop | Decided | Line-level comments on the diff, sent back to the agent(s). |
 | Manual editing | Decided | Out of scope. "Edit manually" opens the file in the user's own editor/IDE, which is user-configurable. |
 | Git | Decided | Stage, commit, and push from inside the app. |
@@ -56,7 +57,7 @@ If a feature request implies any of these, the answer is "open it in your editor
 All of this is **Suggested**.
 
 - **Shell:** Electron with TypeScript. The main process owns the filesystem, git, and agent processes. The renderer owns the UI and talks to the main process over typed IPC.
-- **UI:** React, or whichever framework the builder prefers. Three main surfaces: Home (prompt), Session (agent activity), Changes (diff, comments, commit).
+- **UI:** React, or whichever framework the builder prefers. Two main surfaces: Session (the prompt when no session is active, then agent activity with a follow-up input; a "New session" action returns to the prompt) and Changes (diff, comments, commit). There is no separate Home screen: with a single agent there is at most one session, so Home would only be the Session empty state. Revisit if parallel agents arrive (a session list in the side panel).
 - **Agent:** Claude Code through the Claude Agent SDK, rendering its event stream. The SDK runs inside the sandbox container, in a small runner script. The main process starts the container and exchanges JSON lines with the runner over stdio. Keep this behind an adapter interface so that other agents can be added later.
 - **Sandbox:** A Docker container with the project bind-mounted, run with the host uid/gid so files are not root-owned. The API key is stored on the host with Electron `safeStorage` and sent to the runner over stdin, never as an env var, `--env-file` or file, so it does not appear in `docker inspect`. The agent can still read it from the process that holds it, so this is an MVP measure; the planned hardening is a host-side proxy that adds the key to requests, leaving the container with only a placeholder token and `ANTHROPIC_BASE_URL` (to be verified against the SDK). Network access is open for now. The image holds Node, the SDK and the runner, and may later be overridden per project. The container has no git credentials, and the project's `.git` directory is bind-mounted read-only. This stops the agent committing and, importantly, stops it editing hooks or config, which the host's `git` would later run with the user's credentials. Read-only git commands (`git diff`, `git log`) still work; anything that writes (including index refreshes by `git status`) fails inside the container. Layouts where `.git` is a file or sits outside the project (worktrees, submodules) need the real git directory mounted read-only too.
 - **Diff rendering:** Monaco's diff editor in read-only mode, or a dedicated diff library, fed by `git diff`. Support both unified and split views.
@@ -122,7 +123,7 @@ Linting and formatting use Biome (one tool for both, config in `biome.json`, mat
 
 Each milestone should be usable on its own.
 
-1. **Shell.** Electron app, open a project folder, home screen with a prompt input, basic VS Code-style layout.
+1. **Shell.** Electron app, open a project folder, prompt input in the Session view, basic VS Code-style layout.
 2. **Agent session.** Build the sandbox image and container lifecycle. Wrap the Agent SDK behind the adapter, running in the container. Stream its output, show tool calls and file edits, and handle interrupt.
 3. **Changes view.** File list plus diff of working tree against `HEAD`. Unified and split views.
 4. **Line comments.** Add comments on lines or ranges, batch them, send to the agent as a structured message (file, line range, quoted code, comment text). Handle a second round with outdated-comment logic.

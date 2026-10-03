@@ -56,7 +56,7 @@ body {
   font-family: var(--font-mono);
   font-size: 12px;
 }
-.home {
+.session {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -67,7 +67,7 @@ body {
   margin: 0 auto;
   padding: 24px;
 }
-.home h1 {
+.session h1 {
   margin: 0 0 6px;
   font-size: 24px;
   font-weight: 600;
@@ -79,7 +79,7 @@ body {
   color: var(--text-muted);
   font-size: 12px;
 }
-.home textarea {
+.session textarea {
   min-height: 140px;
   resize: vertical;
   padding: 14px 16px;
@@ -95,14 +95,14 @@ body {
     border-color 0.12s,
     box-shadow 0.12s;
 }
-.home textarea::placeholder {
+.session textarea::placeholder {
   color: var(--text-muted);
 }
-.home textarea:focus {
+.session textarea:focus {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 1px var(--border-focus);
 }
-.home textarea:disabled {
+.session textarea:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -133,4 +133,72 @@ button:disabled {
   background: var(--bg-input);
   color: var(--text-muted);
   cursor: not-allowed;
+}
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.activitybar {
+  display: flex;
+  flex-direction: column;
+  width: 48px;
+  background: var(--bg-titlebar);
+  border-right: 1px solid var(--border);
+}
+.activitybar .activity {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 0;
+}
+.activitybar .activity:hover:not(:disabled) {
+  background: transparent;
+  color: var(--text-strong);
+}
+.activitybar .activity.active {
+  color: var(--text-strong);
+}
+.activitybar .activity.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--text-strong);
+}
+.activity svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sidebar {
+  width: 240px;
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  overflow: auto;
+}
+.sidebar h2 {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.placeholder {
+  flex: 1;
+  display: grid;
+  place-items: center;
 }

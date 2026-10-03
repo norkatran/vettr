@@ -49,9 +49,10 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [x] Open a project folder via a native picker, from File > Open Project (Ctrl+O) in the application menu
 - [x] Remember the current project and recent projects across restarts (File > Recent Projects, last 10)
 - [x] Verify the chosen folder is a git repository (a subfolder resolves to the repo root); otherwise show an error and do not open it
-- [x] Home screen with a prompt input (Ctrl+Enter or Start submits; disabled until a project is open; submission is a stub until the Session surface exists)
-- [ ] Basic VS Code / Atom-style layout (title bar, status bar, main surface, theme)
-- [ ] Navigation between the Home, Session and Changes surfaces
+- [x] Prompt input as the empty state of the Session view (Ctrl+Enter or Start submits; disabled until a project is open; submission is a stub until the agent adapter exists)
+- [x] VS Code-style sidebar: activity bar (Session, Changes) plus a collapsible side panel (click the active icon or Ctrl+B to toggle). Session and Changes are placeholders until those surfaces exist
+- [ ] Rest of the VS Code / Atom-style layout (status bar, theme)
+- [ ] Navigation between the Session and Changes surfaces (the activity bar switches views; remaining work is the real Session and Changes content, and a "New session" action that returns to the prompt)
 
 ### 2. Agent session
 
