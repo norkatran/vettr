@@ -29,7 +29,7 @@ The user never browses a file tree to see what happened. They prompt, watch the 
 | Look and feel | Decided | VS Code / Atom-style UI. |
 | Paradigm | Decided | Agent-first. The prompt (the empty state of the Session view) is the entry point. |
 | Navigating changes | Decided | A diff/changes view replaces the sidebar file tree as the main way to see what happened. |
-| Sidebar | Decided | VS Code-style activity bar (Session, Changes) with a collapsible side panel (click the active icon or Ctrl+B). It is for switching surfaces and surface-specific lists, not a project file tree. |
+| Sidebar | Decided | VS Code-style activity bar (Session, Changes) with a collapsible side panel (click the active icon or Ctrl+B); the Session panel holds the "New session" button. It is for switching surfaces and surface-specific lists, not a project file tree. |
 | Review loop | Decided | Line-level comments on the diff, sent back to the agent(s). |
 | Manual editing | Decided | Out of scope. "Edit manually" opens the file in the user's own editor/IDE, which is user-configurable. |
 | Git | Decided | Stage, commit, and push from inside the app. |

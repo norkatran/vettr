@@ -51,6 +51,8 @@ export function App(): React.JSX.Element {
   const [project, setProject] = useState<string | null>(null)
   const [view, setView] = useState<View>('session')
   const [expanded, setExpanded] = useState(true)
+  // Changing the key remounts Session, which discards its state and returns it to the prompt.
+  const [sessionKey, setSessionKey] = useState(0)
   const [theme, toggleTheme] = useTheme()
 
   // Clicking the active view collapses the side panel, as in VS Code.
@@ -60,6 +62,11 @@ export function App(): React.JSX.Element {
       setView(next)
       setExpanded(true)
     }
+  }
+
+  const newSession = (): void => {
+    setSessionKey((k) => k + 1)
+    setView('session')
   }
 
   useEffect(() => {
@@ -93,9 +100,9 @@ export function App(): React.JSX.Element {
         <span className="project">{project ?? 'No project open'}</span>
       </header>
       <div className="body">
-        <Sidebar view={view} expanded={expanded} onSelect={select} />
+        <Sidebar view={view} expanded={expanded} onSelect={select} onNewSession={newSession} />
         {view === 'session' ? (
-          <Session project={project} onSubmit={startSession} />
+          <Session key={sessionKey} project={project} onSubmit={startSession} />
         ) : (
           <main className="placeholder">
             <p className="hint">The changes view is not built yet.</p>

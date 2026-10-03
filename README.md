@@ -53,7 +53,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [x] VS Code-style sidebar: activity bar (Session, Changes) plus a collapsible side panel (click the active icon or Ctrl+B to toggle). Session and Changes are placeholders until those surfaces exist
 - [x] Status bar: repository name, branch (or short SHA when detached), `↓behind ↑ahead` against the upstream (hidden when zero, "no upstream" when none is set), and changed-file count. Refreshes on window focus
 - [x] Light and dark themes via CSS variables: follows the OS by default, with a status bar toggle that remembers the choice
-- [ ] Navigation between the Session and Changes surfaces (the activity bar switches views; remaining work is the real Session and Changes content, and a "New session" action that returns to the prompt)
+- [x] Navigation between the Session and Changes surfaces: the activity bar switches views, and a "New session" button in the Session side panel returns to the empty prompt (the real Session and Changes content lands in milestones 2 and 3)
 
 ### 2. Agent session
 

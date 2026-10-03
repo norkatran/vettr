@@ -4,6 +4,7 @@ interface SidebarProps {
   view: View
   expanded: boolean
   onSelect: (view: View) => void
+  onNewSession: () => void
 }
 
 const ITEMS: { view: View; label: string; icon: React.JSX.Element }[] = [
@@ -26,7 +27,12 @@ const PANEL_TEXT: Record<View, string> = {
   changes: 'No changes to review.'
 }
 
-export function Sidebar({ view, expanded, onSelect }: SidebarProps): React.JSX.Element {
+export function Sidebar({
+  view,
+  expanded,
+  onSelect,
+  onNewSession
+}: SidebarProps): React.JSX.Element {
   const active = ITEMS.find((i) => i.view === view)
   return (
     <>
@@ -51,6 +57,11 @@ export function Sidebar({ view, expanded, onSelect }: SidebarProps): React.JSX.E
         <aside className="sidebar">
           <h2>{active?.label}</h2>
           <p className="hint">{PANEL_TEXT[view]}</p>
+          {view === 'session' && (
+            <button type="button" className="new-session" onClick={onNewSession}>
+              New session
+            </button>
+          )}
         </aside>
       )}
     </>
