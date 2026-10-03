@@ -1,7 +1,17 @@
+import { rangeOf, type Side, snapshotLines } from '@shared/comments'
 import { changedFileCount, type DiffLine, type FileChange, splitRows } from '@shared/diff'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
+import {
+  CommentContext,
+  type CommentUi,
+  type Draft,
+  isSelected,
+  LineComments,
+  useCommentUi
+} from './Comments'
 import { useNotify } from './Notifications'
 import type { ChangesState } from './useChanges'
+import type { Review } from './useReviewComments'
 
 export type DiffMode = 'unified' | 'split'
 
@@ -10,11 +20,15 @@ export const fileAnchor = (index: number): string => `change-file-${index}`
 interface ChangesProps {
   project: string | null
   changes: ChangesState
+  review: Review
+  /** Send the unsent comments to the agent; null when that is not possible, with the reason. */
+  send: { pending: number; run: () => void; blocked: string | null }
 }
 
-export function Changes({ project, changes }: ChangesProps): React.JSX.Element {
+export function Changes({ project, changes, review, send }: ChangesProps): React.JSX.Element {
   const [mode, setMode] = useState<DiffMode>('unified')
   const notify = useNotify()
+  const [draft, setDraft] = useState<Draft | null>(null)
   const { files, loading } = changes
   const count = changes.changes ? changedFileCount(changes.changes) : 0
 
@@ -32,43 +46,85 @@ export function Changes({ project, changes }: ChangesProps): React.JSX.Element {
     if (failure) notify(to === 'stage' ? 'Stage failed' : 'Unstage failed', failure)
   }
 
+  const ui: CommentUi = {
+    comments: review.comments,
+    draft,
+    pick: (file, isStaged, side, no, shift) =>
+      setDraft((prev) => {
+        const extend =
+          shift && prev && prev.file === file && prev.staged === isStaged && prev.side === side
+        const anchor = extend ? prev.anchor : no
+        const [start, end] = rangeOf(anchor, no)
+        return { file, staged: isStaged, side, anchor, start, end }
+      }),
+    save: (text) => {
+      const target = draft && (draft.staged ? staged : unstaged).find((f) => f.path === draft.file)
+      if (draft && target) {
+        review.add({
+          file: draft.file,
+          staged: draft.staged,
+          side: draft.side,
+          start: draft.start,
+          end: draft.end,
+          snapshot: snapshotLines(target, draft.side, draft.start, draft.end),
+          text
+        })
+      }
+      setDraft(null)
+    },
+    cancel: () => setDraft(null),
+    edit: review.edit,
+    remove: review.remove
+  }
+
   return (
-    <main className="changes">
-      <div className="changes-toolbar">
-        <span>
-          {count} changed {count === 1 ? 'file' : 'files'}
-        </span>
-        <div className="segmented">
-          {(['unified', 'split'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              className={m === mode ? 'selected' : ''}
-              aria-pressed={m === mode}
-              onClick={() => setMode(m)}
-            >
-              {m === 'unified' ? 'Unified' : 'Split'}
-            </button>
-          ))}
+    <CommentContext.Provider value={ui}>
+      <main className="changes">
+        <div className="changes-toolbar">
+          <span>
+            {count} changed {count === 1 ? 'file' : 'files'}
+          </span>
+          <div className="segmented">
+            {(['unified', 'split'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={m === mode ? 'selected' : ''}
+                aria-pressed={m === mode}
+                onClick={() => setMode(m)}
+              >
+                {m === 'unified' ? 'Unified' : 'Split'}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="send-review"
+            disabled={send.pending === 0 || send.blocked !== null}
+            title={send.blocked ?? 'Send the unsent comments to the agent'}
+            onClick={send.run}
+          >
+            Send {send.pending} {send.pending === 1 ? 'comment' : 'comments'} to agent
+          </button>
         </div>
-      </div>
-      <Group
-        title="Staged changes"
-        action="Unstage"
-        files={staged}
-        firstIndex={0}
-        mode={mode}
-        onMove={(moved) => move('unstage', moved)}
-      />
-      <Group
-        title="Unstaged changes"
-        action="Stage"
-        files={unstaged}
-        firstIndex={staged.length}
-        mode={mode}
-        onMove={(moved) => move('stage', moved)}
-      />
-    </main>
+        <Group
+          title="Staged changes"
+          action="Unstage"
+          files={staged}
+          firstIndex={0}
+          mode={mode}
+          onMove={(moved) => move('unstage', moved)}
+        />
+        <Group
+          title="Unstaged changes"
+          action="Stage"
+          files={unstaged}
+          firstIndex={staged.length}
+          mode={mode}
+          onMove={(moved) => move('stage', moved)}
+        />
+      </main>
+    </CommentContext.Provider>
   )
 }
 
@@ -114,6 +170,7 @@ function Group({ title, action, files, firstIndex, mode, onMove }: GroupProps): 
           id={fileAnchor(firstIndex + i)}
           file={file}
           mode={mode}
+          staged={action === 'Unstage'}
           action={action}
           onMove={() => onMove([file])}
         />
@@ -143,12 +200,14 @@ function FileDiff({
   id,
   file,
   mode,
+  staged,
   action,
   onMove
 }: {
   id: string
   file: FileChange
   mode: DiffMode
+  staged: boolean
   action: 'Stage' | 'Unstage'
   onMove: () => void
 }): React.JSX.Element {
@@ -184,6 +243,8 @@ function FileDiff({
                 header={hunk.header}
                 lines={hunk.lines}
                 mode={mode}
+                file={file.path}
+                staged={staged}
               />
             ))}
           </tbody>
@@ -196,33 +257,58 @@ function FileDiff({
 function HunkRows({
   header,
   lines,
-  mode
+  mode,
+  file,
+  staged
 }: {
   header: string
   lines: DiffLine[]
   mode: DiffMode
+  file: string
+  staged: boolean
 }): React.JSX.Element {
+  const split = mode === 'split'
   return (
     <>
       <tr className="hunk-header">
-        <td colSpan={mode === 'split' ? 4 : 3}>{header}</td>
+        <td colSpan={split ? 4 : 3}>{header}</td>
       </tr>
-      {mode === 'unified'
-        ? lines.map((line) => (
-            <tr key={`${line.oldNo}:${line.newNo}`} className={line.kind}>
-              <td className="num">{line.oldNo}</td>
-              <td className="num">{line.newNo}</td>
-              <td className="code">
-                <span className="sign">{SIGN[line.kind]}</span>
-                {line.text}
-              </td>
-            </tr>
+      {split
+        ? splitRows(lines).map((row) => (
+            <Fragment key={`${row.left?.oldNo}:${row.right?.newNo}`}>
+              <tr>
+                <SplitCells line={row.left} side="old" file={file} staged={staged} />
+                <SplitCells line={row.right} side="new" file={file} staged={staged} />
+              </tr>
+              <LineComments
+                file={file}
+                staged={staged}
+                side="old"
+                no={row.left?.oldNo ?? null}
+                colSpan={4}
+              />
+              <LineComments
+                file={file}
+                staged={staged}
+                side="new"
+                no={row.right?.newNo ?? null}
+                colSpan={4}
+              />
+            </Fragment>
           ))
-        : splitRows(lines).map((row) => (
-            <tr key={`${row.left?.oldNo}:${row.right?.newNo}`}>
-              <SplitCells line={row.left} side="old" />
-              <SplitCells line={row.right} side="new" />
-            </tr>
+        : lines.map((line) => (
+            <Fragment key={`${line.oldNo}:${line.newNo}`}>
+              <tr className={line.kind}>
+                <NumberCell line={line} side="old" file={file} staged={staged} />
+                <NumberCell line={line} side="new" file={file} staged={staged} />
+                <td className="code">
+                  <span className="sign">{SIGN[line.kind]}</span>
+                  {line.text}
+                </td>
+              </tr>
+              <LineComments file={file} staged={staged} side="old" no={line.oldNo} colSpan={3} />
+              <LineComments file={file} staged={staged} side="new" no={line.newNo} colSpan={3} />
+            </Fragment>
           ))}
     </>
   )
@@ -230,7 +316,51 @@ function HunkRows({
 
 const SIGN = { context: ' ', add: '+', del: '-' } as const
 
-function SplitCells({ line, side }: { line: DiffLine | null; side: 'old' | 'new' }) {
+interface CellProps {
+  line: DiffLine
+  side: Side
+  file: string
+  staged: boolean
+}
+
+/** A line number cell; clicking it comments on the line, shift-click extends to a range. */
+function NumberCell({
+  line,
+  side,
+  file,
+  staged,
+  className = ''
+}: CellProps & { className?: string }) {
+  const ui = useCommentUi()
+  const no = side === 'old' ? line.oldNo : line.newNo
+  if (no === null) return <td className="num" />
+  const selected = isSelected(ui.draft, file, staged, side, no)
+  return (
+    <td className={`num ${className} ${selected ? 'selected' : ''}`}>
+      <button
+        type="button"
+        className="line-number"
+        title="Click to comment (shift-click for a range)"
+        aria-label={`Comment on ${side} line ${no}`}
+        onClick={(e) => ui.pick(file, staged, side, no, e.shiftKey)}
+      >
+        {no}
+      </button>
+    </td>
+  )
+}
+
+function SplitCells({
+  line,
+  side,
+  file,
+  staged
+}: {
+  line: DiffLine | null
+  side: Side
+  file: string
+  staged: boolean
+}) {
   if (!line) {
     return (
       <>
@@ -241,7 +371,7 @@ function SplitCells({ line, side }: { line: DiffLine | null; side: 'old' | 'new'
   }
   return (
     <>
-      <td className={`num ${line.kind}`}>{side === 'old' ? line.oldNo : line.newNo}</td>
+      <NumberCell line={line} side={side} file={file} staged={staged} className={line.kind} />
       <td className={`code ${line.kind}`}>{line.text}</td>
     </>
   )

@@ -1,3 +1,4 @@
+import { formatReview, pendingComments } from '@shared/comments'
 import { changedFileCount } from '@shared/diff'
 import { otherTheme, parseThemeChoice, resolveTheme, type Theme } from '@shared/theme'
 import { useEffect, useState } from 'react'
@@ -7,6 +8,7 @@ import { Sidebar, type View } from './Sidebar'
 import { StatusBar } from './StatusBar'
 import { useAgentSession } from './useAgentSession'
 import { useChanges } from './useChanges'
+import { useReviewComments } from './useReviewComments'
 
 const THEME_KEY = 'agentide.theme'
 const darkQuery = '(prefers-color-scheme: dark)'
@@ -56,6 +58,19 @@ export function App(): React.JSX.Element {
   const changes = useChanges(project)
   const count = changes.changes ? changedFileCount(changes.changes) : 0
   const session = useAgentSession(project)
+  const review = useReviewComments(project)
+  const pending = pendingComments(review.comments)
+  const sendBlocked =
+    session.state.status === 'idle' || session.state.status === 'ended'
+      ? 'Start a session first: comments are sent to the running agent'
+      : session.state.status === 'running'
+        ? 'Wait for the agent to finish its current turn'
+        : null
+  const sendReview = (): void => {
+    session.send(formatReview(pending))
+    review.markSent(pending.map((c) => c.id))
+    setView('session')
+  }
 
   // Clicking the active view collapses the side panel, as in VS Code.
   const select = (next: View): void => {
@@ -126,7 +141,12 @@ export function App(): React.JSX.Element {
         {view === 'session' ? (
           <Session project={project} session={session} />
         ) : (
-          <Changes project={project} changes={changes} />
+          <Changes
+            project={project}
+            changes={changes}
+            review={review}
+            send={{ pending: pending.length, run: sendReview, blocked: sendBlocked }}
+          />
         )}
       </div>
       <StatusBar project={project} theme={theme} onToggleTheme={toggleTheme} />

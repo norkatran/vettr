@@ -807,3 +807,85 @@ button.link:hover:not(:disabled) {
 .remote-menu button:hover {
   background: var(--border);
 }
+
+.diff .line-number {
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.diff .line-number:hover {
+  color: var(--text-strong);
+  text-decoration: underline;
+}
+.diff td.num.selected {
+  background: rgba(88, 166, 255, 0.35);
+  color: var(--text-strong);
+}
+.diff tr.comment-row > td {
+  padding: 6px 8px;
+  background: var(--bg-elevated);
+  white-space: normal;
+  font-family: inherit;
+}
+.comment,
+.comment-editor {
+  max-width: 640px;
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-focus);
+  border-radius: 6px;
+}
+.comment.sent {
+  opacity: 0.6;
+  border-left-color: var(--border);
+}
+.comment p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-strong);
+}
+.comment-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.comment-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.comment-actions button {
+  padding: 1px 8px;
+  font-size: 11px;
+}
+.comment-editor textarea {
+  width: 100%;
+  min-height: 60px;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 6px 8px;
+  background: var(--bg-input);
+  color: var(--text-strong);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+.comment-editor .comment-actions {
+  margin-top: 6px;
+}
+.send-review {
+  margin-left: auto;
+  padding: 2px 10px;
+  font-size: 12px;
+}

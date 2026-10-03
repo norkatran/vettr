@@ -118,6 +118,8 @@ Suggested approach:
 - When a new round arrives, try to re-anchor by matching the snapshot text. If it no longer matches, mark the comment **outdated** and keep it visible in a collapsed state.
 - Show a round-to-round diff so the user can see what the agent changed in response.
 
+**Built so far (round 1):** clicking a line number in the diff opens a comment editor (shift-click selects a range); the comment is stored with file, staged or unstaged diff, side, range, snapshot, text and round (`ReviewComment` in `src/shared/comments.ts`, held in memory by `useReviewComments` and reset when the project changes). Pending comments can be edited or deleted. "Send N comments to agent" formats them with `formatReview` (file, lines, quoted code, comment) and sends them as a follow-up message, so it needs a session waiting for input; sent comments stay visible and greyed, and the round advances. Still to do: re-anchoring, outdated comments and the round-to-round diff.
+
 ### 5.2 Manual edits made in the external editor
 
 Because editing happens outside the app, three things are needed:
