@@ -7,6 +7,7 @@ import {
   switchName,
   switchTargets
 } from '@shared/gitActions'
+import type { View } from './Sidebar'
 import type { PaletteApi, PaletteItem } from './CommandPalette'
 
 /** What a command can use. Failures are reported through `notify`, not thrown. */
@@ -18,6 +19,8 @@ export interface CommandContext extends PaletteApi {
   stagedCount: () => number
   /** Show the Changes view and focus the commit message input. */
   focusCommit: () => void
+  /** Switch to a view, expanding the side panel. */
+  showView: (view: View) => void
 }
 
 /** A global command. Every command is always listed; one that cannot run explains why. */
@@ -25,6 +28,8 @@ export interface Command {
   id: string
   category: string
   title: string
+  /** Set to false for commands that work without an open project. Default true. */
+  needsProject?: boolean
   run: (ctx: CommandContext, project: string) => Promise<void>
 }
 
@@ -112,6 +117,27 @@ const commit: Command['run'] = async (ctx) => {
 }
 
 export const commands: Command[] = [
+  {
+    id: 'jump-session',
+    category: 'Jump To',
+    title: 'Session',
+    needsProject: false,
+    run: async (ctx) => ctx.showView('session')
+  },
+  {
+    id: 'jump-changes',
+    category: 'Jump To',
+    title: 'Changes',
+    needsProject: false,
+    run: async (ctx) => ctx.showView('changes')
+  },
+  {
+    id: 'jump-settings',
+    category: 'Jump To',
+    title: 'Settings',
+    needsProject: false,
+    run: async (ctx) => ctx.showView('settings')
+  },
   { id: 'fetch', category: 'Git', title: 'Fetch', run: act('Fetch', { kind: 'fetch' }) },
   { id: 'pull', category: 'Git', title: 'Pull', run: act('Pull', { kind: 'pull' }) },
   {
@@ -189,10 +215,10 @@ export async function runCommandPalette(ctx: CommandContext): Promise<void> {
   )
   const command = commands.find((c) => c.id === id)
   if (!command) return
-  if (!ctx.project)
+  if (command.needsProject !== false && !ctx.project)
     return ctx.notify('No project open', 'Open a project first (File > Open Project).')
   try {
-    await command.run(ctx, ctx.project)
+    await command.run(ctx, ctx.project ?? '')
   } catch (error) {
     ctx.notify(`${command.title} failed`, (error as Error).message)
   }

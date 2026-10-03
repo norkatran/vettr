@@ -117,7 +117,11 @@ export function App(): React.JSX.Element {
       project,
       notify,
       stagedCount: () => stagedCount,
-      focusCommit
+      focusCommit,
+      showView: (next) => {
+        setView(next)
+        setExpanded(true)
+      }
     }).finally(() => setStatusRefresh((n) => n + 1))
   }
   const openPaletteRef = useRef(openPalette)

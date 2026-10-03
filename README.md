@@ -107,6 +107,7 @@ Global git commands in a VS Code-style palette (see brief section 6.2).
 - [x] Branches: New Branch, Change Branch (local and remote branches), Delete Branch
 - [x] Changes: Commit (opens the Changes view and focuses the message input), Stage All, Unstage All, Discard All Changes (confirmed)
 - [x] Stash, Pop Stash, Merge Branch into Current, Rebase Current Branch onto (a conflicting merge or rebase is aborted and reported)
+- [x] Jump To: Session, Changes, Settings (work without an open project)
 
 ### 5. Line comments
 
