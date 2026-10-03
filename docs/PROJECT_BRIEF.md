@@ -71,6 +71,14 @@ All of this is **Suggested**.
 
 Decided: `sandbox/Dockerfile` builds `agentide-sandbox` from `node:22-slim` (glibc, because the SDK ships a native `claude` binary per platform) with `git` and `ripgrep`, the Agent SDK installed at the version pinned in `package.json`, and the bundled runner as the entrypoint. `npm run build:sandbox` bundles `src/runner` with esbuild (SDK kept external) and builds the image. The runner reads commands on stdin and writes events on stdout; stderr (including the SDK's own) is diagnostics only. It uses `bypassPermissions`, loads project settings only (so a project `CLAUDE.md` applies but nothing from the container home) and passes the API key to the SDK process as `ANTHROPIC_API_KEY` (the key is visible to the agent, as noted under Sandbox). The container runs as the host uid/gid with `HOME=/tmp/home`. Translation of SDK messages into app events lives in `src/runner/translate.ts`: a `file-edited` event is emitted when an Edit, MultiEdit, Write or NotebookEdit call finishes without an error. A failed turn yields `error` then `turn-finished`, so the UI always unlocks.
 
+### Container lifecycle
+
+Decided: the container is started by `startSandbox` (`src/main/sandbox.ts`) as `docker run --rm -i --init` and stopped with SIGTERM to the `docker` process, which `--init` forwards. Arguments come from `buildRunArgs` (`src/shared/sandbox.ts`): host uid/gid, all capabilities dropped, `no-new-privileges`, and the project mounted at the same absolute path as on the host, so paths in events (such as `file-edited`) need no translation. Read-only overlays come after the project mount: the git dir, the common dir for linked worktrees, and the `.git` file in worktrees and submodules (so the agent cannot redirect it). Verified against real Docker: the agent can write project files (owned by the host user), but writing hooks fails and `git commit` cannot take the index lock, while `git log` works. `checkDocker` reports a missing daemon or missing image with a message saying how to fix it.
+
+SELinux: on hosts with SELinux enforcing (Fedora, RHEL) the container cannot use bind mounts at all by default. Decided: run with `--security-opt label=disable` rather than relabelling with `:z`, which would change labels on the user's files. Isolation still comes from Docker's namespaces and the dropped capabilities.
+
+The API key is stored by `createApiKeyStore` (`src/main/apiKey.ts`): encrypted with Electron `safeStorage` (injected so it is testable), file mode 0600, and it refuses to save if encryption is unavailable instead of falling back to plain text.
+
 ### Agent adapter interface (sketch)
 
 The UI should depend only on a small interface, roughly:
