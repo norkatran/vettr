@@ -9,7 +9,9 @@ Electron + TypeScript + React, built with [electron-vite](https://electron-vite.
 - `src/main` - main process (filesystem, git, agent processes)
 - `src/preload` - context-isolated bridge exposing `window.agentide`
 - `src/renderer` - React UI
-- `src/shared` - types shared across processes (typed IPC contract)
+- `src/runner` - the runner that executes inside the sandbox container and drives the Agent SDK (bundled by esbuild, not part of the Electron app)
+- `src/shared` - types shared across processes (typed IPC contract, agent protocol)
+- `sandbox` - Dockerfile for the agent sandbox image
 
 ## Scripts
 
@@ -17,6 +19,7 @@ Electron + TypeScript + React, built with [electron-vite](https://electron-vite.
 - `npm run build` - production build into `out/`
 - `npm start` - preview the production build
 - `npm run typecheck` - type-check main/preload and renderer
+- `npm run build:sandbox` - bundle the runner and build the `agentide-sandbox` Docker image (needs Docker)
 - `npm run lint` - lint with [Biome](https://biomejs.dev)
 - `npm test` - run the [Vitest](https://vitest.dev) suite (`*.test.ts` files under `src/`)
 - `npm run test:coverage` - run the suite with V8 coverage; fails unless every logic file is at 100% (see `vitest.config.ts` for the excluded glue)
@@ -67,7 +70,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 ### 3. Agent session
 
 - [x] Define the agent adapter interface (`start`, `send`, `interrupt`, event stream; keep `respondToApproval` in the interface for later), plus the JSON-lines protocol shared with the runner (`src/shared/agent.ts`)
-- [ ] Build the sandbox image (Node, Claude Agent SDK, runner script that speaks JSON lines over stdio)
+- [x] Build the sandbox image (Node, Claude Agent SDK, runner script that speaks JSON lines over stdio): `sandbox/Dockerfile` and `src/runner`, built with `npm run build:sandbox`
 - [ ] Start and stop the container from the main process: bind-mount the project, host uid/gid, send the API key to the runner over stdin, check Docker is available and report clearly if not
 - [ ] Implement the first adapter in the main process, behind the interface, driving the in-container runner
 - [ ] Prevent the agent from committing, pushing or tampering with git: mount `.git` read-only (so no commits, and no edits to hooks or config that would later run on the host with the user's credentials), no git credentials in the container, and handle worktree/submodule layouts where `.git` is a file or lives elsewhere

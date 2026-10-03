@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { encodeLine, LineBuffer, parseEventLine } from './agent'
+import { encodeLine, LineBuffer, parseCommandLine, parseEventLine } from './agent'
 
 describe('encodeLine', () => {
   it('writes one JSON object per line', () => {
@@ -39,6 +39,35 @@ describe('parseEventLine', () => {
       'exited'
     ]) {
       expect(parseEventLine(JSON.stringify({ type }))).toEqual({ type })
+    }
+  })
+})
+
+describe('parseCommandLine', () => {
+  it('accepts well-formed commands', () => {
+    for (const command of [
+      { type: 'init', apiKey: 'k', cwd: '/p' },
+      { type: 'prompt', text: 'hi' },
+      { type: 'interrupt' }
+    ] as const) {
+      expect(parseCommandLine(encodeLine(command))).toEqual(command)
+    }
+  })
+
+  it('drops unknown fields', () => {
+    expect(parseCommandLine('{"type":"interrupt","extra":1}')).toEqual({ type: 'interrupt' })
+  })
+
+  it('rejects malformed input and commands with missing fields', () => {
+    for (const line of [
+      '{nope',
+      'null',
+      '{"type":"bogus"}',
+      '{"type":"prompt"}',
+      '{"type":"init","apiKey":"k"}',
+      '{"type":"init","cwd":"/p"}'
+    ]) {
+      expect(parseCommandLine(line)).toBeNull()
     }
   })
 })

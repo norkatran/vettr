@@ -47,17 +47,35 @@ export function encodeLine(message: RunnerCommand | AgentEvent): string {
   return `${JSON.stringify(message)}\n`
 }
 
-/** Parse one line from the runner into an event, or null if it is not a well-formed event. */
-export function parseEventLine(line: string): AgentEvent | null {
+function parseObject(line: string): Record<string, unknown> | null {
   let value: unknown
   try {
     value = JSON.parse(line)
   } catch {
     return null
   }
-  if (typeof value !== 'object' || value === null) return null
-  const type = (value as { type?: unknown }).type
-  return typeof type === 'string' && EVENT_TYPES.has(type) ? (value as AgentEvent) : null
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null
+}
+
+/** Parse one line from the runner into an event, or null if it is not a well-formed event. */
+export function parseEventLine(line: string): AgentEvent | null {
+  const value = parseObject(line)
+  return typeof value?.type === 'string' && EVENT_TYPES.has(value.type)
+    ? (value as AgentEvent)
+    : null
+}
+
+/** Parse one line from the main process into a command, or null if it is not a well-formed command. */
+export function parseCommandLine(line: string): RunnerCommand | null {
+  const value = parseObject(line)
+  if (value?.type === 'interrupt') return { type: 'interrupt' }
+  if (value?.type === 'prompt' && typeof value.text === 'string') {
+    return { type: 'prompt', text: value.text }
+  }
+  if (value?.type === 'init' && typeof value.apiKey === 'string' && typeof value.cwd === 'string') {
+    return { type: 'init', apiKey: value.apiKey, cwd: value.cwd }
+  }
+  return null
 }
 
 /**

@@ -67,6 +67,10 @@ All of this is **Suggested**.
 - **File watching:** Decided: the main process watches the project with chokidar (`src/main/watcher.ts`), debounced to 250 ms, and sends a `repo:changed` event to the renderer, which reloads the Changes view and status bar. `node_modules` is skipped, and inside `.git` only `HEAD` and `index` are watched so staging, commits and branch switches refresh the view. Window focus still triggers a reload as a fallback. `.gitignore` is not consulted yet, so large ignored build directories are still watched.
 - **Multiple agents (later):** One git worktree per agent, so parallel agents cannot overwrite each other. The MVP runs a single agent.
 
+### Sandbox image and runner
+
+Decided: `sandbox/Dockerfile` builds `agentide-sandbox` from `node:22-slim` (glibc, because the SDK ships a native `claude` binary per platform) with `git` and `ripgrep`, the Agent SDK installed at the version pinned in `package.json`, and the bundled runner as the entrypoint. `npm run build:sandbox` bundles `src/runner` with esbuild (SDK kept external) and builds the image. The runner reads commands on stdin and writes events on stdout; stderr (including the SDK's own) is diagnostics only. It uses `bypassPermissions`, loads project settings only (so a project `CLAUDE.md` applies but nothing from the container home) and passes the API key to the SDK process as `ANTHROPIC_API_KEY` (the key is visible to the agent, as noted under Sandbox). The container runs as the host uid/gid with `HOME=/tmp/home`. Translation of SDK messages into app events lives in `src/runner/translate.ts`: a `file-edited` event is emitted when an Edit, MultiEdit, Write or NotebookEdit call finishes without an error. A failed turn yields `error` then `turn-finished`, so the UI always unlocks.
+
 ### Agent adapter interface (sketch)
 
 The UI should depend only on a small interface, roughly:

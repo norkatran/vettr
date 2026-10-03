@@ -14,6 +14,7 @@ export default defineConfig({
         'src/**/*.d.ts',
         // Electron and React glue with no extractable logic; keep it thin
         'src/main/index.ts',
+        'src/runner/index.ts',
         'src/preload/index.ts',
         'src/renderer/src/**'
       ],
