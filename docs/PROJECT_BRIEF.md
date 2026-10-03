@@ -157,12 +157,25 @@ Each milestone should be usable on its own.
 1. **Shell.** Electron app, open a project folder, prompt input in the Session view, basic VS Code-style layout.
 2. **Changes view.** File list plus diff of working tree against `HEAD`. Unified and split views. Built before the agent session so diffs from an agent run externally (for example Claude Code in a terminal) can be reviewed straight away.
 3. **Agent session.** Build the sandbox image and container lifecycle. Wrap the Agent SDK behind the adapter, running in the container. Stream its output, show tool calls and file edits, and handle interrupt.
-4. **Line comments.** Add comments on lines or ranges, batch them, send to the agent as a structured message (file, line range, quoted code, comment text). Handle a second round with outdated-comment logic.
-5. **Commit and push.** Stage files, commit message, commit and push buttons, all user-initiated.
+4. **Commit and push.** Brought forward ahead of line comments because it is small, well defined and completes a usable loop (prompt, watch, review, commit, push). Changes view split into collapsible Staged and Unstaged accordions; file-level stage and unstage only (no hunk staging); commit message input and button; push to `origin`. All user-initiated. See section 6.1.
+5. **Line comments.** Add comments on lines or ranges, batch them, send to the agent as a structured message (file, line range, quoted code, comment text). Handle a second round with outdated-comment logic.
 6. **External editor.** "Open in editor" from the diff with jump-to-line, file watching, and the note to the agent about external changes.
+
+### 6.1 Commit and push design
+
+Decided:
+
+- **Staging:** file-level only. Hunk staging is out of scope for now (it needs patch building for `git apply --cached`).
+- **Layout:** the Changes view has two accordions, Staged changes and Unstaged changes, so every change is still visible at once with a clear separation of what is where. Each file is listed under the section matching its index state; a partially staged file appears in both.
+- **Commit:** the user types the message and the host `git commit` runs over the staged files only. While it runs, the message input is greyed out and disabled with a spinner beside it.
+- **Push:** a button that pushes to `origin` using the host `git`, with prompting disabled (`GIT_TERMINAL_PROMPT=0`, no askpass, SSH `BatchMode`). If any input would be required (passphrase, credentials) the push fails and the user is notified. Interactive auth is later work. The button shows the same busy state (disabled with a spinner) while pushing.
+- **Errors:** any failure (hooks, auth, rejected push, nothing staged) is shown to the user as a notification with git's output. The message input keeps its text so nothing is lost.
+- **Open:** push with no upstream (`push -u`). The status bar currently says there is no publish action.
 
 Later:
 
+- Interactive git authentication for push
+- Hunk-level staging
 - Checkpoints and undo per agent turn
 - Approval prompts, allowlist and restricted sandbox networking
 - Host-side API proxy so the real key never enters the container

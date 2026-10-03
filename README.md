@@ -84,7 +84,20 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [x] Surface errors and agent exit clearly
 - [x] Verify a full turn against the real API with a real credential (confirmed working in the real app with an OAuth token)
 
-### 4. Line comments
+### 4. Commit and push
+
+Brought forward ahead of line comments (see brief section 6.1). File-level staging only; no hunk staging.
+
+- [ ] Stage and unstage whole files from the Changes view
+- [ ] Split the Changes view into collapsible Staged and Unstaged accordions (a partially staged file appears in both)
+- [ ] Commit message input and a commit button (the user writes the message; the agent never commits)
+- [ ] While committing, grey out the message input and show a spinner beside it
+- [ ] Push button that pushes to `origin` using the host's installed `git`, credentials and config (the agent never pushes); prompting is disabled, so it fails and notifies the user if any input is needed
+- [ ] Same busy state (disabled with a spinner) while pushing
+- [ ] Notification system for git errors (hooks, auth, rejected pushes, nothing staged), showing git's output and keeping the typed commit message
+- [ ] Decide how to handle push when no upstream is set (`push -u`)
+
+### 5. Line comments
 
 - [ ] Add a comment to a line or a range, on either side of the diff
 - [ ] Store each comment with file, side, line range, snapshot of the lines and review round
@@ -93,13 +106,6 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [ ] Mark comments that no longer match as outdated and show them collapsed
 - [ ] Round-to-round diff showing what the agent changed in response
 - [ ] Edit and delete comments before sending
-
-### 5. Commit and push
-
-- [ ] Stage and unstage files (and ideally hunks) from the Changes view
-- [ ] Commit message input and a commit button (the user writes the message; the agent never commits)
-- [ ] Push button, using the host's installed `git`, credentials and config (the agent never pushes)
-- [ ] Show git errors (hooks, auth, rejected pushes) in the UI
 
 ### 6. External editor
 
@@ -117,6 +123,8 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 
 ### Later
 
+- [ ] Interactive git authentication for push (passphrase and credential prompts)
+- [ ] Hunk-level staging
 - [ ] Checkpoints and undo per agent turn (the session model can take them additively: see brief section 5.4)
 - [ ] Approval prompts and a user-extendable allowlist for shell commands
 - [ ] Restricted network access for the sandbox container
