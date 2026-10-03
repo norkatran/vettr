@@ -1,3 +1,4 @@
+import type { FileChange } from './diff'
 import type { RepoStatus } from './repoStatus'
 
 /** Typed IPC contract shared by main, preload and renderer. */
@@ -11,10 +12,13 @@ export interface AgentideApi {
   getCurrentProject(): Promise<string | null>
   /** Branch, upstream divergence and change count for the repo at `project`, or null if unreadable. */
   getRepoStatus(project: string): Promise<RepoStatus | null>
+  /** Working tree against HEAD, untracked files included, or null if it cannot be read. */
+  getChanges(project: string): Promise<FileChange[] | null>
 }
 
 export const IpcChannel = {
   projectOpened: 'project:opened',
   getCurrentProject: 'project:current',
-  getRepoStatus: 'repo:status'
+  getRepoStatus: 'repo:status',
+  getChanges: 'repo:changes'
 } as const

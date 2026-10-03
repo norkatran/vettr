@@ -1,8 +1,10 @@
 import { otherTheme, parseThemeChoice, resolveTheme, type Theme } from '@shared/theme'
 import { useEffect, useState } from 'react'
+import { Changes } from './Changes'
 import { Session } from './Session'
 import { Sidebar, type View } from './Sidebar'
 import { StatusBar } from './StatusBar'
+import { useChanges } from './useChanges'
 
 // Placeholder until the agent adapter and Session view exist (milestone 2).
 function startSession(_prompt: string): void {}
@@ -54,6 +56,7 @@ export function App(): React.JSX.Element {
   // Changing the key remounts Session, which discards its state and returns it to the prompt.
   const [sessionKey, setSessionKey] = useState(0)
   const [theme, toggleTheme] = useTheme()
+  const changes = useChanges(project)
 
   // Clicking the active view collapses the side panel, as in VS Code.
   const select = (next: View): void => {
@@ -98,15 +101,31 @@ export function App(): React.JSX.Element {
       <header className="titlebar">
         <span>agentide</span>
         <span className="project">{project ?? 'No project open'}</span>
+        {project && (
+          <button
+            type="button"
+            className="titlebar-button"
+            onClick={() => {
+              setView('changes')
+              setExpanded(true)
+            }}
+          >
+            Changes{changes.files && changes.files.length > 0 ? ` (${changes.files.length})` : ''}
+          </button>
+        )}
       </header>
       <div className="body">
-        <Sidebar view={view} expanded={expanded} onSelect={select} onNewSession={newSession} />
+        <Sidebar
+          view={view}
+          expanded={expanded}
+          onSelect={select}
+          onNewSession={newSession}
+          changes={changes}
+        />
         {view === 'session' ? (
           <Session key={sessionKey} project={project} onSubmit={startSession} />
         ) : (
-          <main className="placeholder">
-            <p className="hint">The changes view is not built yet.</p>
-          </main>
+          <Changes project={project} changes={changes} />
         )}
       </div>
       <StatusBar project={project} theme={theme} onToggleTheme={toggleTheme} />

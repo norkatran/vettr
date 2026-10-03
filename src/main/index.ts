@@ -9,7 +9,7 @@ import {
   type MenuItemConstructorOptions,
   type OpenDialogOptions
 } from 'electron'
-import { findRepoRoot, getRepoStatus } from './git'
+import { findRepoRoot, getChanges, getRepoStatus } from './git'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
 
 function createWindow(): void {
@@ -104,6 +104,7 @@ void app.whenReady().then(async () => {
   if (current && !(await findRepoRoot(current))) forgetProject(current)
   ipcMain.handle(IpcChannel.getCurrentProject, () => getProjectState().current)
   ipcMain.handle(IpcChannel.getRepoStatus, (_event, project: string) => getRepoStatus(project))
+  ipcMain.handle(IpcChannel.getChanges, (_event, project: string) => getChanges(project))
   buildMenu()
   createWindow()
   app.on('activate', () => {

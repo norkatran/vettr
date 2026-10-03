@@ -57,11 +57,11 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 
 ### 2. Changes view
 
-- [ ] Run `git diff` of the working tree against `HEAD` from the main process
-- [ ] Changed-file list with status (added, modified, deleted, renamed)
-- [ ] Read-only diff rendering with unified and split modes
-- [ ] Handle binary files, renames and very large diffs gracefully
-- [ ] Single button to open the Changes view from anywhere in a session
+- [x] Run `git diff` of the working tree against `HEAD` from the main process (untracked files included, via a throwaway copy of the index)
+- [x] Changed-file list with status (added, modified, deleted, renamed)
+- [x] Read-only diff rendering with unified and split modes (plain table rendering; no syntax highlighting yet)
+- [x] Handle binary files, renames and very large diffs gracefully (files over 5000 changed lines are listed with counts but not rendered)
+- [x] Single button to open the Changes view from anywhere in a session (titlebar button with the changed-file count)
 - [ ] Watch the working tree (for example with chokidar) and refresh on change
 
 ### 3. Agent session

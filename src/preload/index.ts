@@ -8,7 +8,8 @@ const api: AgentideApi = {
     return () => ipcRenderer.removeListener(IpcChannel.projectOpened, listener)
   },
   getCurrentProject: () => ipcRenderer.invoke(IpcChannel.getCurrentProject),
-  getRepoStatus: (project) => ipcRenderer.invoke(IpcChannel.getRepoStatus, project)
+  getRepoStatus: (project) => ipcRenderer.invoke(IpcChannel.getRepoStatus, project),
+  getChanges: (project) => ipcRenderer.invoke(IpcChannel.getChanges, project)
 }
 
 contextBridge.exposeInMainWorld('agentide', api)

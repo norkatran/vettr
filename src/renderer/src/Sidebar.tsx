@@ -1,3 +1,6 @@
+import { FileTitle, fileAnchor } from './Changes'
+import type { ChangesState } from './useChanges'
+
 export type View = 'session' | 'changes'
 
 interface SidebarProps {
@@ -5,6 +8,7 @@ interface SidebarProps {
   expanded: boolean
   onSelect: (view: View) => void
   onNewSession: () => void
+  changes: ChangesState
 }
 
 const ITEMS: { view: View; label: string; icon: React.JSX.Element }[] = [
@@ -22,6 +26,8 @@ const ITEMS: { view: View; label: string; icon: React.JSX.Element }[] = [
   }
 ]
 
+const STATUS_LETTER = { added: 'A', modified: 'M', deleted: 'D', renamed: 'R' } as const
+
 const PANEL_TEXT: Record<View, string> = {
   session: 'No agent session yet. Describe a task to start one.',
   changes: 'No changes to review.'
@@ -31,7 +37,8 @@ export function Sidebar({
   view,
   expanded,
   onSelect,
-  onNewSession
+  onNewSession,
+  changes
 }: SidebarProps): React.JSX.Element {
   const active = ITEMS.find((i) => i.view === view)
   return (
@@ -56,7 +63,31 @@ export function Sidebar({
       {expanded && (
         <aside className="sidebar">
           <h2>{active?.label}</h2>
-          <p className="hint">{PANEL_TEXT[view]}</p>
+          {view === 'changes' && changes.files && changes.files.length > 0 ? (
+            <ul className="file-list">
+              {changes.files.map((file, i) => (
+                <li key={`${file.oldPath ?? ''}>${file.path}`}>
+                  <button
+                    type="button"
+                    className="file-link"
+                    title={file.path}
+                    onClick={() =>
+                      document.getElementById(fileAnchor(i))?.scrollIntoView({ block: 'start' })
+                    }
+                  >
+                    <span className={`status-letter ${file.status}`}>
+                      {STATUS_LETTER[file.status]}
+                    </span>
+                    <span className="file-name">
+                      <FileTitle file={file} />
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="hint">{PANEL_TEXT[view]}</p>
+          )}
           {view === 'session' && (
             <button type="button" className="new-session" onClick={onNewSession}>
               New session
