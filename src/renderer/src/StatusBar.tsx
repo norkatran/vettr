@@ -42,6 +42,16 @@ function repoName(project: string): string {
 
 export function StatusBar({ project, theme, onToggleTheme }: StatusBarProps): React.JSX.Element {
   const status = useRepoStatus(project)
+  const [pushing, setPushing] = useState(false)
+  // Interim until the notification system exists
+  const [pushError, setPushError] = useState<string | null>(null)
+  const push = async (): Promise<void> => {
+    if (!project || pushing) return
+    setPushing(true)
+    const failure = await window.agentide.push(project)
+    setPushing(false)
+    setPushError(failure)
+  }
   const target = otherTheme(theme)
 
   return (
@@ -50,24 +60,52 @@ export function StatusBar({ project, theme, onToggleTheme }: StatusBarProps): Re
         {project && <span title={project}>{repoName(project)}</span>}
         {status && (
           <>
-            <span title="Current branch">
-              {status.branch ?? `${status.sha ?? 'no commits'} (detached)`}
-            </span>
-            {status.upstream ? (
-              (status.behind > 0 || status.ahead > 0) && (
-                <span title={`Compared with ${status.upstream}`}>
-                  {status.behind > 0 && `↓${status.behind}`}
-                  {status.behind > 0 && status.ahead > 0 && ' '}
-                  {status.ahead > 0 && `↑${status.ahead}`}
+            {(() => {
+              const content = (
+                <>
+                  <span>{status.branch ?? `${status.sha ?? 'no commits'} (detached)`}</span>
+                  {status.upstream ? (
+                    (status.behind > 0 || status.ahead > 0) && (
+                      <span>
+                        {status.behind > 0 && `↓${status.behind}`}
+                        {status.behind > 0 && status.ahead > 0 && ' '}
+                        {status.ahead > 0 && `↑${status.ahead}`}
+                      </span>
+                    )
+                  ) : (
+                    <span className="muted">no upstream</span>
+                  )}
+                  {pushing && <span className="spinner" aria-hidden="true" />}
+                </>
+              )
+              return status.upstream && status.ahead > 0 ? (
+                <button
+                  type="button"
+                  className="status-button status-branch"
+                  disabled={pushing}
+                  onClick={() => void push()}
+                  title={`Click to push to ${status.upstream}`}
+                >
+                  {content}
+                </button>
+              ) : (
+                <span
+                  className="status-branch"
+                  title={status.upstream ? `Compared with ${status.upstream}` : 'Current branch'}
+                >
+                  {content}
                 </span>
               )
-            ) : (
-              <span className="muted">no upstream</span>
-            )}
+            })()}
             <span title="Changed files, including untracked">
               {status.changes === 0 ? 'clean' : `${status.changes} changed`}
             </span>
           </>
+        )}
+        {pushError && (
+          <span className="status-error" title={pushError}>
+            Push failed: {pushError.split('\n')[0]}
+          </span>
         )}
       </div>
       <button

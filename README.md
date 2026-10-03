@@ -92,8 +92,8 @@ Brought forward ahead of line comments (see brief section 6.1). File-level stagi
 - [x] Split the Changes view into collapsible Staged and Unstaged accordions (a partially staged file appears in both)
 - [x] Commit message input and a commit button, at the top of the Changes side panel (Ctrl+Enter commits; the user writes the message; the agent never commits; errors shown inline for now)
 - [x] While committing, grey out the message input and show a spinner in the button beside "Committing"
-- [ ] Push button that pushes to `origin` using the host's installed `git`, credentials and config (the agent never pushes); prompting is disabled, so it fails and notifies the user if any input is needed
-- [ ] Same busy state (disabled with a spinner) while pushing
+- [x] The status bar's branch and `↑ahead`/`↓behind` area is itself the push control (clickable only when there are commits to push): runs `git push` to the branch's upstream using the host's installed `git`, credentials and config (the agent never pushes); prompting is disabled, so it fails if any input is needed. Failures show inline in the status bar until the notification system lands
+- [x] Same busy state (disabled with a spinner, "Pushing") while pushing
 - [ ] Notification system for git errors (hooks, auth, rejected pushes, nothing staged), showing git's output and keeping the typed commit message
 - [ ] Decide how to handle push when no upstream is set (`push -u`)
 

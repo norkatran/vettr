@@ -142,3 +142,24 @@ export async function commitStaged(dir: string, message: string): Promise<string
     return failureMessage(error)
   }
 }
+
+/**
+ * Push the current branch to its upstream using the host's `git`, credentials and config.
+ * Prompting is disabled so a push that needs input (passphrase, credentials) fails rather than
+ * hanging. Resolves to null on success or to git's message on failure.
+ */
+export async function pushCurrent(dir: string): Promise<string | null> {
+  try {
+    const env = {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: '0',
+      GIT_ASKPASS: 'true',
+      SSH_ASKPASS: 'true',
+      GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? 'ssh -o BatchMode=yes'
+    }
+    await run('git', ['push'], { cwd: dir, env })
+    return null
+  } catch (error) {
+    return failureMessage(error)
+  }
+}

@@ -260,6 +260,14 @@ button:disabled {
   min-width: 0;
   white-space: nowrap;
 }
+.statusbar .status-branch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.statusbar button.status-branch {
+  margin: 0 -6px;
+}
 .statusbar .old-path {
   color: var(--text-muted);
 }
@@ -710,4 +718,15 @@ button.link:hover:not(:disabled) {
   to {
     transform: rotate(360deg);
   }
+}
+
+.statusbar .status-button:disabled {
+  background: transparent;
+}
+.statusbar .status-error {
+  color: #e5534b;
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

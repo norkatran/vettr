@@ -143,41 +143,39 @@ export function Sidebar({
             </p>
           )}
           {view === 'changes' && changes.files && changes.files.length > 0 ? (
-            <>
-              <ul className="file-list">
-                {changes.files.map((file, i) => {
-                  const staged = i < stagedCount
-                  return (
-                    <li className="file-row" key={`${i}:${file.oldPath ?? ''}>${file.path}`}>
-                      <button
-                        type="button"
-                        className="file-link"
-                        title={file.path}
-                        onClick={() =>
-                          document.getElementById(fileAnchor(i))?.scrollIntoView({ block: 'start' })
-                        }
-                      >
-                        <span className={`status-letter ${file.status}`}>
-                          {STATUS_LETTER[file.status]}
-                        </span>
-                        <span className="file-name">
-                          <FileTitle file={file} />
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="file-stage"
-                        title={staged ? 'Unstage' : 'Stage'}
-                        aria-label={`${staged ? 'Unstage' : 'Stage'} ${file.path}`}
-                        onClick={() => void move(staged, file)}
-                      >
-                        {staged ? '−' : '+'}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            </>
+            <ul className="file-list">
+              {changes.files.map((file, i) => {
+                const staged = i < stagedCount
+                return (
+                  <li className="file-row" key={`${i}:${file.oldPath ?? ''}>${file.path}`}>
+                    <button
+                      type="button"
+                      className="file-link"
+                      title={file.path}
+                      onClick={() =>
+                        document.getElementById(fileAnchor(i))?.scrollIntoView({ block: 'start' })
+                      }
+                    >
+                      <span className={`status-letter ${file.status}`}>
+                        {STATUS_LETTER[file.status]}
+                      </span>
+                      <span className="file-name">
+                        <FileTitle file={file} />
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="file-stage"
+                      title={staged ? 'Unstage' : 'Stage'}
+                      aria-label={`${staged ? 'Unstage' : 'Stage'} ${file.path}`}
+                      onClick={() => void move(staged, file)}
+                    >
+                      {staged ? '−' : '+'}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
           ) : (
             <p className="hint">
               {view === 'session' && sessionStarted ? SESSION_STARTED_TEXT : PANEL_TEXT[view]}

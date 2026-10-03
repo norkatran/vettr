@@ -20,6 +20,7 @@ import {
   findRepoRoot,
   getChanges,
   getRepoStatus,
+  pushCurrent,
   stageFiles,
   unstageFiles
 } from './git'
@@ -168,6 +169,7 @@ void app.whenReady().then(async () => {
   ipcMain.handle(IpcChannel.commitStaged, (_event, project: string, message: string) =>
     commitStaged(project, message)
   )
+  ipcMain.handle(IpcChannel.push, (_event, project: string) => pushCurrent(project))
   ipcMain.handle(IpcChannel.agentStart, (_event, prompt: string) =>
     attempt(async () => {
       const project = getProjectState().current

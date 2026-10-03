@@ -12,7 +12,14 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { findRepoRoot, getChanges, getRepoStatus, stageFiles, unstageFiles } from './git'
+import {
+  findRepoRoot,
+  getChanges,
+  getRepoStatus,
+  pushCurrent,
+  stageFiles,
+  unstageFiles
+} from './git'
 
 let root = ''
 
@@ -282,5 +289,38 @@ describe('stageFiles and unstageFiles', () => {
 
   it('returns the error text when git cannot run at all', async () => {
     expect(await stageFiles(join(root, 'gone'), ['a'])).toEqual(expect.any(String))
+  })
+})
+
+describe('pushCurrent', () => {
+  const git = (cwd: string, ...args: string[]): string =>
+    execFileSync('git', ['-C', cwd, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+      encoding: 'utf8'
+    })
+
+  it('pushes commits to the upstream', async () => {
+    const remote = join(root, 'remote.git')
+    const work = join(root, 'work')
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', remote])
+    execFileSync('git', ['init', '-q', '-b', 'main', work])
+    git(work, 'remote', 'add', 'origin', remote)
+    writeFileSync(join(work, 'a.txt'), 'a\n')
+    git(work, 'add', '.')
+    git(work, 'commit', '-q', '-m', 'one')
+    git(work, 'push', '-q', '-u', 'origin', 'main')
+    writeFileSync(join(work, 'b.txt'), 'b\n')
+    git(work, 'add', '.')
+    git(work, 'commit', '-q', '-m', 'two')
+    expect(await pushCurrent(work)).toBeNull()
+    expect(git(remote, 'log', '--format=%s', 'main')).toBe('two\none\n')
+  })
+
+  it('returns git output when the push fails', async () => {
+    execFileSync('git', ['init', '-q', '-b', 'main', root])
+    expect(await pushCurrent(root)).toContain('fatal')
+  })
+
+  it('falls back to the error message when git gives no stderr', async () => {
+    expect(await pushCurrent(join(root, 'missing'))).toEqual(expect.any(String))
   })
 })

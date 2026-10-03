@@ -23,6 +23,8 @@ export interface AgentideApi {
   unstageFiles(project: string, paths: string[]): Promise<string | null>
   /** Commit the staged files with the user's message; resolves to null or git's error output. */
   commitStaged(project: string, message: string): Promise<string | null>
+  /** Push the current branch to its upstream; resolves to null or git's error output. */
+  push(project: string): Promise<string | null>
   /**
    * Start a session in the current project with a first prompt. Resolves to null on success or
    * to a message for the user (Docker missing, no API key, ...).
@@ -50,6 +52,7 @@ export const IpcChannel = {
   stageFiles: 'repo:stage',
   unstageFiles: 'repo:unstage',
   commitStaged: 'repo:commit',
+  push: 'repo:push',
   agentStart: 'agent:start',
   agentSend: 'agent:send',
   agentInterrupt: 'agent:interrupt',
