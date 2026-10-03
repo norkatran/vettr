@@ -55,7 +55,16 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [x] Light and dark themes via CSS variables: follows the OS by default, with a status bar toggle that remembers the choice
 - [x] Navigation between the Session and Changes surfaces: the activity bar switches views, and a "New session" button in the Session side panel returns to the empty prompt (the real Session and Changes content lands in milestones 2 and 3)
 
-### 2. Agent session
+### 2. Changes view
+
+- [ ] Run `git diff` of the working tree against `HEAD` from the main process
+- [ ] Changed-file list with status (added, modified, deleted, renamed)
+- [ ] Read-only diff rendering with unified and split modes
+- [ ] Handle binary files, renames and very large diffs gracefully
+- [ ] Single button to open the Changes view from anywhere in a session
+- [ ] Watch the working tree (for example with chokidar) and refresh on change
+
+### 3. Agent session
 
 - [ ] Define the agent adapter interface (`start`, `send`, `interrupt`, event stream; keep `respondToApproval` in the interface for later)
 - [ ] Build the sandbox image (Node, Claude Agent SDK, runner script that speaks JSON lines over stdio)
@@ -69,15 +78,6 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [ ] Send follow-up messages in the same session
 - [ ] Surface errors and agent exit clearly
 - [ ] Keep the session model open to per-turn checkpoints later
-
-### 3. Changes view
-
-- [ ] Run `git diff` of the working tree against `HEAD` from the main process
-- [ ] Changed-file list with status (added, modified, deleted, renamed)
-- [ ] Read-only diff rendering with unified and split modes
-- [ ] Handle binary files, renames and very large diffs gracefully
-- [ ] Single button to open the Changes view from anywhere in a session
-- [ ] Watch the working tree (for example with chokidar) and refresh on change
 
 ### 4. Line comments
 

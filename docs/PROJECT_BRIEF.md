@@ -126,8 +126,8 @@ Linting and formatting use Biome (one tool for both, config in `biome.json`, mat
 Each milestone should be usable on its own.
 
 1. **Shell.** Electron app, open a project folder, prompt input in the Session view, basic VS Code-style layout.
-2. **Agent session.** Build the sandbox image and container lifecycle. Wrap the Agent SDK behind the adapter, running in the container. Stream its output, show tool calls and file edits, and handle interrupt.
-3. **Changes view.** File list plus diff of working tree against `HEAD`. Unified and split views.
+2. **Changes view.** File list plus diff of working tree against `HEAD`. Unified and split views. Built before the agent session so diffs from an agent run externally (for example Claude Code in a terminal) can be reviewed straight away.
+3. **Agent session.** Build the sandbox image and container lifecycle. Wrap the Agent SDK behind the adapter, running in the container. Stream its output, show tool calls and file edits, and handle interrupt.
 4. **Line comments.** Add comments on lines or ranges, batch them, send to the agent as a structured message (file, line range, quoted code, comment text). Handle a second round with outdated-comment logic.
 5. **Commit and push.** Stage files, commit message, commit and push buttons, all user-initiated.
 6. **External editor.** "Open in editor" from the diff with jump-to-line, file watching, and the note to the agent about external changes.
