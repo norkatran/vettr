@@ -34,7 +34,9 @@ const api: AgentideApi = {
     return () => ipcRenderer.removeListener(IpcChannel.agentEvent, listener)
   },
   hasApiKey: () => ipcRenderer.invoke(IpcChannel.hasApiKey),
-  setApiKey: (key) => ipcRenderer.invoke(IpcChannel.setApiKey, key)
+  setApiKey: (key) => ipcRenderer.invoke(IpcChannel.setApiKey, key),
+  getSettings: () => ipcRenderer.invoke(IpcChannel.getSettings),
+  setSettings: (settings) => ipcRenderer.invoke(IpcChannel.setSettings, settings)
 }
 
 contextBridge.exposeInMainWorld('agentide', api)

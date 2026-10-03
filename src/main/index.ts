@@ -30,6 +30,7 @@ import {
 } from './git'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
 import { checkDocker, startSandbox, stopSandbox } from './sandbox'
+import { getSettings, loadSettings, updateSettings } from './settingsStore'
 import { watchTree } from './watcher'
 
 const apiKeys = createApiKeyStore(join(app.getPath('userData'), 'apikey'), {
@@ -159,6 +160,7 @@ function buildMenu(): void {
 
 void app.whenReady().then(async () => {
   loadProjectState()
+  loadSettings()
   const { current } = getProjectState()
   if (current && !(await findRepoRoot(current))) forgetProject(current)
   ipcMain.handle(IpcChannel.getCurrentProject, () => getProjectState().current)
@@ -194,6 +196,8 @@ void app.whenReady().then(async () => {
   )
   ipcMain.handle(IpcChannel.agentInterrupt, () => attempt(() => agent.interrupt()).then(() => {}))
   ipcMain.handle(IpcChannel.agentStop, () => agent.stop())
+  ipcMain.handle(IpcChannel.getSettings, () => getSettings())
+  ipcMain.handle(IpcChannel.setSettings, (_event, next: unknown) => updateSettings(next))
   ipcMain.handle(IpcChannel.hasApiKey, async () => (await apiKeys.get()) !== null)
   ipcMain.handle(IpcChannel.setApiKey, (_event, key: string) =>
     attempt(() => saveApiKey(apiKeys, key, (url, init) => fetch(url, init)))

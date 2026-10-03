@@ -137,6 +137,7 @@ Because editing happens outside the app, three things are needed:
 - Configurable command template, for example `code -g {file}:{line}`.
 - Clicking from the diff should land on the exact line.
 - Offer presets for common editors plus a custom command.
+- Decided: the command lives in a general **Settings** view (a Settings item at the bottom of the activity bar, which opens a view in the main area). Settings are stored host-side in `settings.json` under Electron's `userData`, validated on load (`src/shared/settings.ts`, `src/main/settingsStore.ts`, IPC `settings:get`/`settings:set`). The theme and API key keep their existing stores. New preferences should be added there rather than getting their own files.
 
 ### 5.4 Checkpoints and undo
 

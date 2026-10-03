@@ -109,7 +109,8 @@ Brought forward ahead of line comments (see brief section 6.1). File-level stagi
 
 ### 6. External editor
 
-- [ ] Setting for a command template (for example `code -g {file}:{line}`) with presets and a custom option
+- [x] Settings view for general preferences: a Settings item at the bottom of the activity bar opens a Settings view in the main area; settings persist in `settings.json` under `userData` (`src/main/settingsStore.ts`, `src/shared/settings.ts`)
+- [x] Setting for a command template (for example `code -g {file}:{line}`) with presets and a custom option (stored; used by the next item)
 - [ ] "Open in editor" from the diff, landing on the exact line
 - [ ] Detect files changed outside the app and note them in the next message to the agent
 - [ ] Mark comments on externally edited lines as outdated

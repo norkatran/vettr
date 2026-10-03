@@ -4,7 +4,7 @@ import { FileTitle, fileAnchor, filePaths } from './Changes'
 import { useNotify } from './Notifications'
 import type { ChangesState } from './useChanges'
 
-export type View = 'session' | 'changes'
+export type View = 'session' | 'changes' | 'settings'
 
 interface SidebarProps {
   project: string | null
@@ -32,11 +32,18 @@ const ITEMS: { view: View; label: string; icon: React.JSX.Element }[] = [
   }
 ]
 
+const SETTINGS_ITEM = {
+  view: 'settings' as const,
+  label: 'Settings',
+  icon: <path d="M4 7h10M18 7h2M4 17h2M10 17h10M16 4v6M8 14v6" />
+}
+
 const STATUS_LETTER = { added: 'A', modified: 'M', deleted: 'D', renamed: 'R' } as const
 
 const PANEL_TEXT: Record<View, string> = {
   session: 'No agent session yet. Describe a task to start one.',
-  changes: 'No changes to review.'
+  changes: 'No changes to review.',
+  settings: 'Preferences stored on this machine, such as your external editor.'
 }
 
 const BADGE_MAX = 99
@@ -78,16 +85,19 @@ export function Sidebar({
     if (failure === null) setMessage('')
     else notify('Commit failed', failure)
   }
-  const active = ITEMS.find((i) => i.view === view)
+  const active = [...ITEMS, SETTINGS_ITEM].find((i) => i.view === view)
   const changeCount = changes.changes ? changedFileCount(changes.changes) : 0
   return (
     <>
       <nav className="activitybar" aria-label="Views">
-        {ITEMS.map((item) => (
+        {[...ITEMS, SETTINGS_ITEM].map((item) => (
           <button
             key={item.view}
             type="button"
-            className={item.view === view && expanded ? 'activity active' : 'activity'}
+            className={
+              (item.view === view && expanded ? 'activity active' : 'activity') +
+              (item.view === 'settings' ? ' activity-bottom' : '')
+            }
             title={item.label}
             aria-label={item.label}
             aria-pressed={item.view === view}

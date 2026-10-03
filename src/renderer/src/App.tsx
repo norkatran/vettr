@@ -4,6 +4,7 @@ import { otherTheme, parseThemeChoice, resolveTheme, type Theme } from '@shared/
 import { useEffect, useState } from 'react'
 import { Changes } from './Changes'
 import { Session } from './Session'
+import { SettingsView } from './SettingsView'
 import { Sidebar, type View } from './Sidebar'
 import { StatusBar } from './StatusBar'
 import { useAgentSession } from './useAgentSession'
@@ -150,7 +151,9 @@ export function App(): React.JSX.Element {
           changes={changes}
           sessionStarted={session.state.status !== 'idle'}
         />
-        {view === 'session' ? (
+        {view === 'settings' ? (
+          <SettingsView />
+        ) : view === 'session' ? (
           <Session project={project} session={session} />
         ) : (
           <Changes

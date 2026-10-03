@@ -1,6 +1,7 @@
 import type { AgentEvent } from './agent'
 import type { FileChange, RepoChanges } from './diff'
 import type { RepoStatus } from './repoStatus'
+import type { Settings } from './settings'
 
 /** Typed IPC contract shared by main, preload and renderer. */
 export interface AgentideApi {
@@ -49,6 +50,9 @@ export interface AgentideApi {
   hasApiKey(): Promise<boolean>
   /** Save the API key (encrypted on the host); resolves to null or an error message. */
   setApiKey(key: string): Promise<string | null>
+  getSettings(): Promise<Settings>
+  /** Validate and persist settings; resolves to the settings now in effect. */
+  setSettings(settings: Settings): Promise<Settings>
 }
 
 export const IpcChannel = {
@@ -71,5 +75,7 @@ export const IpcChannel = {
   agentStop: 'agent:stop',
   agentEvent: 'agent:event',
   hasApiKey: 'apikey:status',
-  setApiKey: 'apikey:set'
+  setApiKey: 'apikey:set',
+  getSettings: 'settings:get',
+  setSettings: 'settings:set'
 } as const
