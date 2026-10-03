@@ -18,6 +18,7 @@ const api: AgentideApi = {
   getChanges: (project) => ipcRenderer.invoke(IpcChannel.getChanges, project),
   stageFiles: (project, paths) => ipcRenderer.invoke(IpcChannel.stageFiles, project, paths),
   unstageFiles: (project, paths) => ipcRenderer.invoke(IpcChannel.unstageFiles, project, paths),
+  commitStaged: (project, message) => ipcRenderer.invoke(IpcChannel.commitStaged, project, message),
   agentStart: (prompt) => ipcRenderer.invoke(IpcChannel.agentStart, prompt),
   agentSend: (message) => ipcRenderer.invoke(IpcChannel.agentSend, message),
   agentInterrupt: () => ipcRenderer.invoke(IpcChannel.agentInterrupt),

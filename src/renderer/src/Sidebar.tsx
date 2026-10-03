@@ -57,6 +57,8 @@ export function Sidebar({
 }: SidebarProps): React.JSX.Element {
   // Interim until the notification system exists
   const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState('')
+  const [committing, setCommitting] = useState(false)
   const stagedCount = changes.changes?.staged.length ?? 0
   const move = async (staged: boolean, file: FileChange): Promise<void> => {
     if (!project) return
@@ -66,6 +68,16 @@ export function Sidebar({
         ? window.agentide.unstageFiles(project, paths)
         : window.agentide.stageFiles(project, paths))
     )
+  }
+  const canCommit = !!project && stagedCount > 0 && message.trim() !== '' && !committing
+  const commit = async (): Promise<void> => {
+    if (!project || !canCommit) return
+    setCommitting(true)
+    const failure = await window.agentide.commitStaged(project, message)
+    setCommitting(false)
+    setError(failure)
+    // Keep the typed message on failure so nothing is lost
+    if (failure === null) setMessage('')
   }
   const active = ITEMS.find((i) => i.view === view)
   const changeCount = changes.changes ? changedFileCount(changes.changes) : 0
@@ -100,13 +112,32 @@ export function Sidebar({
       {expanded && (
         <aside className="sidebar">
           <h2>{active?.label}</h2>
+          {view === 'changes' && (
+            <div className="commit-box">
+              <textarea
+                placeholder="Commit message (Ctrl+Enter to commit)"
+                value={message}
+                disabled={committing || !project}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault()
+                    void commit()
+                  }
+                }}
+              />
+              <button type="button" disabled={!canCommit} onClick={() => void commit()}>
+                {committing ? 'Committing...' : 'Commit'}
+              </button>
+            </div>
+          )}
+          {view === 'changes' && error && (
+            <p className="diff-note error" role="alert">
+              {error}
+            </p>
+          )}
           {view === 'changes' && changes.files && changes.files.length > 0 ? (
             <>
-              {error && (
-                <p className="diff-note error" role="alert">
-                  {error}
-                </p>
-              )}
               <ul className="file-list">
                 {changes.files.map((file, i) => {
                   const staged = i < stagedCount

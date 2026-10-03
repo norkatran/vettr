@@ -128,3 +128,17 @@ export function stageFiles(dir: string, paths: string[]): Promise<string | null>
 export function unstageFiles(dir: string, paths: string[]): Promise<string | null> {
   return indexOp(dir, ['reset', '-q'], paths)
 }
+
+/**
+ * Commit what is staged with the user's message, using the host's `git` and hooks. Resolves to
+ * null on success or to git's message on failure (nothing staged, a hook rejected it, ...).
+ * The message is a single argument, never run through a shell.
+ */
+export async function commitStaged(dir: string, message: string): Promise<string | null> {
+  try {
+    await run('git', ['commit', '-m', message], { cwd: dir })
+    return null
+  } catch (error) {
+    return failureMessage(error)
+  }
+}

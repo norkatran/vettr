@@ -15,7 +15,14 @@ import {
 import { createApiKeyStore } from './apiKey'
 import { saveApiKey } from './apiKeyCheck'
 import { attempt, ClaudeAdapter } from './claudeAdapter'
-import { findRepoRoot, getChanges, getRepoStatus, stageFiles, unstageFiles } from './git'
+import {
+  commitStaged,
+  findRepoRoot,
+  getChanges,
+  getRepoStatus,
+  stageFiles,
+  unstageFiles
+} from './git'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
 import { checkDocker, startSandbox, stopSandbox } from './sandbox'
 import { watchTree } from './watcher'
@@ -157,6 +164,9 @@ void app.whenReady().then(async () => {
   )
   ipcMain.handle(IpcChannel.unstageFiles, (_event, project: string, paths: string[]) =>
     unstageFiles(project, paths)
+  )
+  ipcMain.handle(IpcChannel.commitStaged, (_event, project: string, message: string) =>
+    commitStaged(project, message)
   )
   ipcMain.handle(IpcChannel.agentStart, (_event, prompt: string) =>
     attempt(async () => {
