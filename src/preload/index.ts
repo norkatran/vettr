@@ -1,3 +1,4 @@
+import type { AgentEvent } from '@shared/agent'
 import { type AgentideApi, IpcChannel } from '@shared/ipc'
 import { contextBridge, type IpcRendererEvent, ipcRenderer } from 'electron'
 
@@ -14,7 +15,18 @@ const api: AgentideApi = {
   },
   getCurrentProject: () => ipcRenderer.invoke(IpcChannel.getCurrentProject),
   getRepoStatus: (project) => ipcRenderer.invoke(IpcChannel.getRepoStatus, project),
-  getChanges: (project) => ipcRenderer.invoke(IpcChannel.getChanges, project)
+  getChanges: (project) => ipcRenderer.invoke(IpcChannel.getChanges, project),
+  agentStart: (prompt) => ipcRenderer.invoke(IpcChannel.agentStart, prompt),
+  agentSend: (message) => ipcRenderer.invoke(IpcChannel.agentSend, message),
+  agentInterrupt: () => ipcRenderer.invoke(IpcChannel.agentInterrupt),
+  agentStop: () => ipcRenderer.invoke(IpcChannel.agentStop),
+  onAgentEvent: (callback) => {
+    const listener = (_event: IpcRendererEvent, event: AgentEvent): void => callback(event)
+    ipcRenderer.on(IpcChannel.agentEvent, listener)
+    return () => ipcRenderer.removeListener(IpcChannel.agentEvent, listener)
+  },
+  hasApiKey: () => ipcRenderer.invoke(IpcChannel.hasApiKey),
+  setApiKey: (key) => ipcRenderer.invoke(IpcChannel.setApiKey, key)
 }
 
 contextBridge.exposeInMainWorld('agentide', api)

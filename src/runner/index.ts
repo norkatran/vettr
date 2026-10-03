@@ -64,13 +64,22 @@ async function pump(cwd: string, apiKey: string) {
       stderr: (data) => process.stderr.write(data)
     }
   })
+  // A failed turn is reported by the translator and then makes the SDK throw as well; report once
+  let reported = false
   try {
     for await (const message of session) {
-      for (const event of translator.translate(message)) emit(event)
+      for (const event of translator.translate(message)) {
+        if (event.type === 'error') reported = true
+        emit(event)
+      }
     }
   } catch (error) {
-    emit({ type: 'error', message: error instanceof Error ? error.message : String(error) })
+    if (!reported) {
+      emit({ type: 'error', message: error instanceof Error ? error.message : String(error) })
+    }
+    // The session is over, so stop reading stdin: the process then exits and the host sees it
     process.exitCode = 1
+    process.stdin.destroy()
   }
 }
 

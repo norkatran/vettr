@@ -49,6 +49,12 @@ describe('createApiKeyStore', () => {
     expect(await store.get()).toBeNull()
   })
 
+  it('refuses to save an empty key', async () => {
+    const store = createApiKeyStore(file, crypto())
+    await expect(store.set('')).rejects.toThrow('empty')
+    expect(await store.get()).toBeNull()
+  })
+
   it('clears the key, and clearing twice is fine', async () => {
     const store = createApiKeyStore(file, crypto())
     await store.set('k')

@@ -27,6 +27,7 @@ export function createApiKeyStore(file: string, crypto: KeyCrypto): ApiKeyStore 
       }
     },
     async set(key) {
+      if (!key) throw new Error('The API key is empty')
       if (!crypto.isAvailable()) throw new Error('Secure storage is not available on this system')
       await mkdir(dirname(file), { recursive: true })
       await writeFile(file, crypto.encrypt(key), { mode: 0o600 })

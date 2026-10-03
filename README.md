@@ -72,10 +72,10 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [x] Define the agent adapter interface (`start`, `send`, `interrupt`, event stream; keep `respondToApproval` in the interface for later), plus the JSON-lines protocol shared with the runner (`src/shared/agent.ts`)
 - [x] Build the sandbox image (Node, Claude Agent SDK, runner script that speaks JSON lines over stdio): `sandbox/Dockerfile` and `src/runner`, built with `npm run build:sandbox`
 - [x] Start and stop the container from the main process (`src/main/sandbox.ts`, `src/shared/sandbox.ts`): bind-mount the project, host uid/gid, check Docker and the image are available and report clearly if not
-- [ ] API key: the encrypted store exists (`src/main/apiKey.ts`); still to do is wiring it to Electron `safeStorage`, a way to enter it in the UI, and sending it to the runner over stdin in `init`
-- [ ] Implement the first adapter in the main process, behind the interface, driving the in-container runner
+- [ ] API key: stored with Electron `safeStorage` and sent to the runner over stdin in `init` (done, with `hasApiKey` and `setApiKey` over IPC); still to do is a way to enter it in the UI
+- [x] Implement the first adapter in the main process, behind the interface, driving the in-container runner (`src/main/claudeAdapter.ts`)
 - [x] Prevent the agent from committing, pushing or tampering with git: mount `.git` read-only (so no commits, and no edits to hooks or config that would later run on the host with the user's credentials), no git credentials in the container, and handle worktree/submodule layouts where `.git` is a file or lives elsewhere
-- [ ] Stream agent events to the renderer over typed IPC
+- [x] Stream agent events to the renderer over typed IPC (`agent:event`, plus start, send, interrupt and stop calls on `window.agentide`)
 - [ ] Session view: streamed assistant text
 - [ ] Session view: tool calls (started and finished) and file edits
 - [ ] Interrupt the current turn

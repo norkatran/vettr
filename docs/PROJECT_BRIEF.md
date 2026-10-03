@@ -79,6 +79,12 @@ SELinux: on hosts with SELinux enforcing (Fedora, RHEL) the container cannot use
 
 The API key is stored by `createApiKeyStore` (`src/main/apiKey.ts`): encrypted with Electron `safeStorage` (injected so it is testable), file mode 0600, and it refuses to save if encryption is unavailable instead of falling back to plain text.
 
+### Claude adapter and IPC
+
+Decided: `ClaudeAdapter` (`src/main/claudeAdapter.ts`) implements the interface over the container. Its dependencies (Docker check, container start and stop, API key) are injected so it is tested against a fake process. `start` claims the single session slot synchronously (so concurrent starts cannot both proceed), checks Docker, reads the key, starts the container and writes `init` then the first prompt. It rejects with a user-facing message when Docker or the image is missing or no key is saved. Container stdout goes through `LineBuffer` and `parseEventLine`; stderr is kept (last 2000 characters) and attached to the error shown if the container dies unexpectedly. When the container exits the adapter emits `exited`, preceded by an `error` only when the exit was unrequested, non-zero and the runner had not already reported one. A fatal SDK error ends the runner process (it reports one `error`, then exits with code 1), so a failed turn ends the session: the user starts a new one. `stop()` is quiet, and a project switch or app quit stops the session.
+
+IPC (`src/shared/ipc.ts`): `agentStart(prompt)`, `agentSend`, `agentInterrupt`, `agentStop`, `onAgentEvent`, `hasApiKey` and `setApiKey`. The start and send calls resolve to `null` or an error message rather than rejecting. `agentStart` uses the main process's current project instead of a path from the renderer, and the key never reaches the renderer after it is saved.
+
 ### Agent adapter interface (sketch)
 
 The UI should depend only on a small interface, roughly:

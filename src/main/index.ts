@@ -1,4 +1,6 @@
+import { execFile, spawn } from 'node:child_process'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 import { IpcChannel } from '@shared/ipc'
 import {
   app,
@@ -7,11 +9,39 @@ import {
   ipcMain,
   Menu,
   type MenuItemConstructorOptions,
-  type OpenDialogOptions
+  type OpenDialogOptions,
+  safeStorage
 } from 'electron'
+import { createApiKeyStore } from './apiKey'
+import { attempt, ClaudeAdapter } from './claudeAdapter'
 import { findRepoRoot, getChanges, getRepoStatus } from './git'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
+import { checkDocker, startSandbox, stopSandbox } from './sandbox'
 import { watchTree } from './watcher'
+
+const apiKeys = createApiKeyStore(join(app.getPath('userData'), 'apikey'), {
+  isAvailable: () => safeStorage.isEncryptionAvailable(),
+  encrypt: (plain) => safeStorage.encryptString(plain),
+  decrypt: (encrypted) => safeStorage.decryptString(encrypted)
+})
+const exec = promisify(execFile)
+const agent = new ClaudeAdapter({
+  checkDocker: () => checkDocker((file, args) => exec(file, args)),
+  startSandbox: (project) =>
+    startSandbox({
+      project,
+      spawn,
+      // Linux first, so these exist; the container runs as the host user
+      uid: process.getuid?.() as number,
+      gid: process.getgid?.() as number
+    }),
+  getApiKey: () => apiKeys.get(),
+  stopSandbox
+})
+agent.onEvent((event) => {
+  for (const win of BrowserWindow.getAllWindows())
+    win.webContents.send(IpcChannel.agentEvent, event)
+})
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -45,6 +75,8 @@ async function watchProject(path: string): Promise<void> {
 }
 
 function activateProject(win: BrowserWindow | undefined, path: string): void {
+  // A session belongs to one project's container
+  void agent.stop()
   setCurrentProject(path)
   void watchProject(path)
   buildMenu()
@@ -119,12 +151,32 @@ void app.whenReady().then(async () => {
   ipcMain.handle(IpcChannel.getCurrentProject, () => getProjectState().current)
   ipcMain.handle(IpcChannel.getRepoStatus, (_event, project: string) => getRepoStatus(project))
   ipcMain.handle(IpcChannel.getChanges, (_event, project: string) => getChanges(project))
+  ipcMain.handle(IpcChannel.agentStart, (_event, prompt: string) =>
+    attempt(async () => {
+      const project = getProjectState().current
+      if (!project) throw new Error('Open a project first')
+      await agent.start(prompt, project)
+    })
+  )
+  ipcMain.handle(IpcChannel.agentSend, (_event, message: string) =>
+    attempt(() => agent.send(message))
+  )
+  ipcMain.handle(IpcChannel.agentInterrupt, () => attempt(() => agent.interrupt()).then(() => {}))
+  ipcMain.handle(IpcChannel.agentStop, () => agent.stop())
+  ipcMain.handle(IpcChannel.hasApiKey, async () => (await apiKeys.get()) !== null)
+  ipcMain.handle(IpcChannel.setApiKey, (_event, key: string) =>
+    attempt(() => apiKeys.set(key.trim()))
+  )
   buildMenu()
   if (getProjectState().current) void watchProject(getProjectState().current as string)
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('will-quit', () => {
+  void agent.stop()
 })
 
 app.on('window-all-closed', () => {
