@@ -3,7 +3,7 @@ import { copyFile, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { parseDiff, type RepoChanges } from '@shared/diff'
+import { type FileChange, parseDiff, type RepoChanges } from '@shared/diff'
 import { parseRepoStatus, type RepoStatus } from '@shared/repoStatus'
 
 const run = promisify(execFile)
@@ -52,26 +52,37 @@ const MAX_DIFF_BYTES = 256 * 1024 * 1024
  * The user's real index is never touched.
  */
 export async function getChanges(dir: string): Promise<RepoChanges | null> {
+  return withScratchIndex(dir, async ({ git, env, head }) => {
+    const staged = parseDiff(await cachedDiff(git, env, head))
+    const indexTree = (await git(['write-tree'], env)).trim()
+    await git(['add', '--all'], env)
+    const unstaged = parseDiff(await cachedDiff(git, env, indexTree))
+    return { staged, unstaged }
+  })
+}
+
+type Git = (args: string[], env?: NodeJS.ProcessEnv) => Promise<string>
+
+const cachedDiff = (git: Git, env: NodeJS.ProcessEnv, base: string): Promise<string> =>
+  git(
+    ['-c', 'core.quotepath=false', 'diff', '--cached', '--no-color', '--no-ext-diff', '-M', base],
+    env
+  )
+
+/**
+ * Run `fn` against a throwaway copy of the index (via `GIT_INDEX_FILE`) so the user's real index
+ * is never touched. `head` is `HEAD`, or the empty tree before the first commit. Null on failure.
+ */
+async function withScratchIndex<T>(
+  dir: string,
+  fn: (ctx: { git: Git; env: NodeJS.ProcessEnv; head: string }) => Promise<T>
+): Promise<T | null> {
   let scratch = ''
   try {
-    const git = async (args: string[], env?: NodeJS.ProcessEnv): Promise<string> => {
+    const git: Git = async (args, env) => {
       const { stdout } = await run('git', args, { cwd: dir, env, maxBuffer: MAX_DIFF_BYTES })
       return stdout
     }
-    const diff = (env: NodeJS.ProcessEnv, base: string): Promise<string> =>
-      git(
-        [
-          '-c',
-          'core.quotepath=false',
-          'diff',
-          '--cached',
-          '--no-color',
-          '--no-ext-diff',
-          '-M',
-          base
-        ],
-        env
-      )
     const indexPath = (
       await git(['rev-parse', '--path-format=absolute', '--git-path', 'index'])
     ).trim()
@@ -84,16 +95,32 @@ export async function getChanges(dir: string): Promise<RepoChanges | null> {
       (out) => out.trim(),
       () => git(['hash-object', '-t', 'tree', '/dev/null']).then((out) => out.trim())
     )
-    const staged = parseDiff(await diff(env, head))
-    const indexTree = (await git(['write-tree'], env)).trim()
-    await git(['add', '--all'], env)
-    const unstaged = parseDiff(await diff(env, indexTree))
-    return { staged, unstaged }
+    return await fn({ git, env, head })
   } catch {
     return null
   } finally {
     if (scratch) await rm(scratch, { recursive: true, force: true })
   }
+}
+
+/**
+ * Record the whole working tree (untracked files included, ignored ones not) as a git tree object
+ * and return its id, or null on failure. Used as the baseline for the round-to-round diff. The
+ * object is unreferenced, so git may collect it after its prune grace period (two weeks).
+ */
+export function snapshotTree(dir: string): Promise<string | null> {
+  return withScratchIndex(dir, async ({ git, env }) => {
+    await git(['add', '--all'], env)
+    return (await git(['write-tree'], env)).trim()
+  })
+}
+
+/** The working tree against a tree from `snapshotTree`: what changed since then. Null on failure. */
+export function getChangesSince(dir: string, tree: string): Promise<FileChange[] | null> {
+  return withScratchIndex(dir, async ({ git, env }) => {
+    await git(['add', '--all'], env)
+    return parseDiff(await cachedDiff(git, env, tree))
+  })
 }
 
 /** What git said when an index operation failed, for showing to the user. */

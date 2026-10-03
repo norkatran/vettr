@@ -11,8 +11,13 @@ export interface Review {
   add(comment: NewComment): void
   edit(id: number, text: string): void
   remove(id: number): void
-  /** Mark the given comments as sent and start the next round. */
-  markSent(ids: number[]): void
+  /**
+   * The working tree recorded when the last review was sent (a git tree id), the baseline for
+   * "changes since the last review"; null before the first send.
+   */
+  baseline: string | null
+  /** Mark the given comments as sent, record the round's baseline tree and start the next round. */
+  markSent(ids: number[], baseline: string | null): void
 }
 
 /**
@@ -24,11 +29,13 @@ export function useReviewComments(project: string | null, changes: RepoChanges |
   const [comments, setComments] = useState<ReviewComment[]>([])
   const [round, setRound] = useState(1)
   const [nextId, setNextId] = useState(1)
+  const [baseline, setBaseline] = useState<string | null>(null)
 
   useEffect(() => {
     setComments([])
     setRound(1)
     setNextId(1)
+    setBaseline(null)
   }, [project])
 
   useEffect(() => {
@@ -54,10 +61,11 @@ export function useReviewComments(project: string | null, changes: RepoChanges |
     (id: number) => setComments((prev) => prev.filter((c) => c.id !== id)),
     []
   )
-  const markSent = useCallback((ids: number[]) => {
+  const markSent = useCallback((ids: number[], tree: string | null) => {
+    if (tree) setBaseline(tree)
     setComments((prev) => prev.map((c) => (ids.includes(c.id) ? { ...c, sent: true } : c)))
     setRound((r) => r + 1)
   }, [])
 
-  return { comments, round, add, edit, remove, markSent }
+  return { comments, round, baseline, add, edit, remove, markSent }
 }

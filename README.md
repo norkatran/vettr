@@ -105,7 +105,7 @@ Brought forward ahead of line comments (see brief section 6.1). File-level stagi
 - [x] Edit and delete comments before sending
 - [x] Re-anchor comments by snapshot text whenever the changes reload (`reanchor` in `src/shared/comments.ts`; follows a file between the staged and unstaged diffs)
 - [x] Mark comments that no longer match as outdated and show them collapsed (an "N outdated comments" list above the diffs)
-- [ ] Round-to-round diff showing what the agent changed in response
+- [x] Round-to-round diff showing what the agent changed in response (sending a review records the working tree as a git tree; a "Since last review" toggle in the Changes toolbar then shows a read-only diff against it)
 
 ### 6. External editor
 

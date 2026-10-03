@@ -1,5 +1,5 @@
 import type { AgentEvent } from './agent'
-import type { RepoChanges } from './diff'
+import type { FileChange, RepoChanges } from './diff'
 import type { RepoStatus } from './repoStatus'
 
 /** Typed IPC contract shared by main, preload and renderer. */
@@ -17,6 +17,10 @@ export interface AgentideApi {
   getRepoStatus(project: string): Promise<RepoStatus | null>
   /** Changes split into staged (index against HEAD) and unstaged (working tree against index), or null if unreadable. */
   getChanges(project: string): Promise<RepoChanges | null>
+  /** Record the working tree as a git tree and return its id (the round baseline), or null on failure. */
+  snapshotTree(project: string): Promise<string | null>
+  /** The working tree against a tree from `snapshotTree`, or null if unreadable. */
+  getChangesSince(project: string, tree: string): Promise<FileChange[] | null>
   /** Stage whole files (paths relative to the repo root); resolves to null or git's error message. */
   stageFiles(project: string, paths: string[]): Promise<string | null>
   /** Unstage whole files (include a renamed file's old path); resolves to null or git's error message. */
@@ -53,6 +57,8 @@ export const IpcChannel = {
   repoChanged: 'repo:changed',
   getRepoStatus: 'repo:status',
   getChanges: 'repo:changes',
+  snapshotTree: 'repo:snapshot',
+  getChangesSince: 'repo:since',
   stageFiles: 'repo:stage',
   unstageFiles: 'repo:unstage',
   commitStaged: 'repo:commit',

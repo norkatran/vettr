@@ -19,10 +19,12 @@ import {
   commitStaged,
   findRepoRoot,
   getChanges,
+  getChangesSince,
   getRepoStatus,
   listRemotes,
   publishBranch,
   pushCurrent,
+  snapshotTree,
   stageFiles,
   unstageFiles
 } from './git'
@@ -162,6 +164,10 @@ void app.whenReady().then(async () => {
   ipcMain.handle(IpcChannel.getCurrentProject, () => getProjectState().current)
   ipcMain.handle(IpcChannel.getRepoStatus, (_event, project: string) => getRepoStatus(project))
   ipcMain.handle(IpcChannel.getChanges, (_event, project: string) => getChanges(project))
+  ipcMain.handle(IpcChannel.snapshotTree, (_event, project: string) => snapshotTree(project))
+  ipcMain.handle(IpcChannel.getChangesSince, (_event, project: string, tree: string) =>
+    getChangesSince(project, tree)
+  )
   ipcMain.handle(IpcChannel.stageFiles, (_event, project: string, paths: string[]) =>
     stageFiles(project, paths)
   )

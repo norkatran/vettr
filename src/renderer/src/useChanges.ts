@@ -49,3 +49,32 @@ export function useChanges(project: string | null): ChangesState {
 
   return state
 }
+
+/**
+ * What changed in `project` since the round baseline `tree` (from `snapshotTree`), reloaded with
+ * the same triggers as `useChanges`. Null while loading, when there is no baseline, or on failure.
+ */
+export function useChangesSince(project: string | null, tree: string | null): FileChange[] | null {
+  const [files, setFiles] = useState<FileChange[] | null>(null)
+
+  useEffect(() => {
+    setFiles(null)
+    if (!project || !tree) return
+    let stale = false
+    const refresh = (): void => {
+      void window.agentide.getChangesSince(project, tree).then((next) => {
+        if (!stale) setFiles(next)
+      })
+    }
+    refresh()
+    window.addEventListener('focus', refresh)
+    const unsubscribe = window.agentide.onRepoChanged(refresh)
+    return () => {
+      stale = true
+      unsubscribe()
+      window.removeEventListener('focus', refresh)
+    }
+  }, [project, tree])
+
+  return files
+}

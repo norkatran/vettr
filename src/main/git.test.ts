@@ -16,10 +16,12 @@ import {
   commitStaged,
   findRepoRoot,
   getChanges,
+  getChangesSince,
   getRepoStatus,
   listRemotes,
   publishBranch,
   pushCurrent,
+  snapshotTree,
   stageFiles,
   unstageFiles
 } from './git'
@@ -396,5 +398,50 @@ describe('commitStaged', () => {
   it('returns git output when there is nothing to commit', async () => {
     execFileSync('git', ['init', '-q', '-b', 'main', root])
     expect(await commitStaged(root, 'hello')).toEqual(expect.any(String))
+  })
+})
+
+describe('snapshotTree and getChangesSince', () => {
+  const git = (...args: string[]): string =>
+    execFileSync('git', ['-C', root, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+      encoding: 'utf8'
+    })
+  const write = (name: string, content: string): void => {
+    writeFileSync(join(root, name), content)
+  }
+
+  it('return null when the folder is not a repo', async () => {
+    expect(await snapshotTree(root)).toBeNull()
+    expect(await getChangesSince(root, 'abc')).toBeNull()
+  })
+
+  it('return null for a tree that does not exist', async () => {
+    git('init', '-q', '-b', 'main')
+    expect(await getChangesSince(root, '0'.repeat(40))).toBeNull()
+  })
+
+  it('show only what changed after the snapshot, untracked files included', async () => {
+    git('init', '-q', '-b', 'main')
+    write('a.txt', 'one\n')
+    git('add', '-A')
+    git('commit', '-q', '-m', 'c')
+    write('a.txt', 'one\ntwo\n')
+    write('new.txt', 'x\n')
+    const tree = await snapshotTree(root)
+    expect(tree).toMatch(/^[0-9a-f]{40}$/)
+    expect(await getChangesSince(root, tree as string)).toEqual([])
+
+    write('a.txt', 'one\ntwo\nthree\n')
+    write('later.txt', 'y\n')
+    const since = await getChangesSince(root, tree as string)
+    expect((since ?? []).map((f) => f.path).sort()).toEqual(['a.txt', 'later.txt'])
+    expect(since?.find((f) => f.path === 'a.txt')?.additions).toBe(1)
+  })
+
+  it('leave the real index alone', async () => {
+    git('init', '-q', '-b', 'main')
+    write('a.txt', 'one\n')
+    await snapshotTree(root)
+    expect(git('status', '--porcelain')).toBe('?? a.txt\n')
   })
 })

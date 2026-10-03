@@ -13,6 +13,8 @@ export interface Draft {
 }
 
 export interface CommentUi {
+  /** True in views that cannot take comments (the diff since the last review). */
+  readOnly: boolean
   comments: ReviewComment[]
   draft: Draft | null
   /** A line number was clicked (shift extends the current selection). */
@@ -167,7 +169,7 @@ export function LineComments({
   colSpan: number
 }): React.JSX.Element | null {
   const ui = useCommentUi()
-  if (no === null) return null
+  if (no === null || ui.readOnly) return null
   const here = ui.comments.filter((c) => endsAt(c, file, staged, side, no))
   const draft =
     ui.draft &&

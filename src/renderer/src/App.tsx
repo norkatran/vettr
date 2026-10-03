@@ -70,7 +70,12 @@ export function App(): React.JSX.Element {
         : null
   const sendReview = async (): Promise<void> => {
     const message = formatReview(pending)
-    review.markSent(pending.map((c) => c.id))
+    // Record the tree before the agent touches it, so the next round can show what it changed
+    const baseline = project ? await window.agentide.snapshotTree(project) : null
+    review.markSent(
+      pending.map((c) => c.id),
+      baseline
+    )
     setView('session')
     // With no live session, the review becomes the prompt that starts a new one
     if (needsNewSession) {

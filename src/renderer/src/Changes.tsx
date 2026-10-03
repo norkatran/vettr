@@ -11,7 +11,7 @@ import {
   useCommentUi
 } from './Comments'
 import { useNotify } from './Notifications'
-import type { ChangesState } from './useChanges'
+import { type ChangesState, useChangesSince } from './useChanges'
 import type { Review } from './useReviewComments'
 
 export type DiffMode = 'unified' | 'split'
@@ -30,6 +30,8 @@ export function Changes({ project, changes, review, send }: ChangesProps): React
   const [mode, setMode] = useState<DiffMode>('unified')
   const notify = useNotify()
   const [draft, setDraft] = useState<Draft | null>(null)
+  const [scope, setScope] = useState<'all' | 'since'>('all')
+  const since = useChangesSince(project, review.baseline)
   const { files, loading } = changes
   const count = changes.changes ? changedFileCount(changes.changes) : 0
 
@@ -47,7 +49,9 @@ export function Changes({ project, changes, review, send }: ChangesProps): React
     if (failure) notify(to === 'stage' ? 'Stage failed' : 'Unstage failed', failure)
   }
 
+  const showSince = scope === 'since' && review.baseline !== null
   const ui: CommentUi = {
+    readOnly: showSince,
     comments: review.comments,
     draft,
     pick: (file, isStaged, side, no, shift) =>
@@ -98,6 +102,26 @@ export function Changes({ project, changes, review, send }: ChangesProps): React
               </button>
             ))}
           </div>
+          {review.baseline !== null && (
+            <div className="segmented">
+              {(['all', 'since'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={s === scope ? 'selected' : ''}
+                  aria-pressed={s === scope}
+                  title={
+                    s === 'since'
+                      ? 'Only what changed after the last review was sent (read-only)'
+                      : 'Everything that differs from HEAD'
+                  }
+                  onClick={() => setScope(s)}
+                >
+                  {s === 'all' ? 'All changes' : 'Since last review'}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             type="button"
             className="send-review"
@@ -108,23 +132,29 @@ export function Changes({ project, changes, review, send }: ChangesProps): React
             Send {send.pending} {send.pending === 1 ? 'comment' : 'comments'} to agent
           </button>
         </div>
-        <OutdatedComments />
-        <Group
-          title="Staged changes"
-          action="Unstage"
-          files={staged}
-          firstIndex={0}
-          mode={mode}
-          onMove={(moved) => move('unstage', moved)}
-        />
-        <Group
-          title="Unstaged changes"
-          action="Stage"
-          files={unstaged}
-          firstIndex={staged.length}
-          mode={mode}
-          onMove={(moved) => move('stage', moved)}
-        />
+        {showSince ? (
+          <SinceReview files={since} mode={mode} />
+        ) : (
+          <>
+            <OutdatedComments />
+            <Group
+              title="Staged changes"
+              action="Unstage"
+              files={staged}
+              firstIndex={0}
+              mode={mode}
+              onMove={(moved) => move('unstage', moved)}
+            />
+            <Group
+              title="Unstaged changes"
+              action="Stage"
+              files={unstaged}
+              firstIndex={staged.length}
+              mode={mode}
+              onMove={(moved) => move('stage', moved)}
+            />
+          </>
+        )}
       </main>
     </CommentContext.Provider>
   )
@@ -133,6 +163,33 @@ export function Changes({ project, changes, review, send }: ChangesProps): React
 /** Every path a file change touches in the index: a rename covers its old and new path. */
 export const filePaths = (file: FileChange): string[] =>
   file.oldPath ? [file.oldPath, file.path] : [file.path]
+
+/** What changed since the last review was sent: read-only, with no staging or comments. */
+function SinceReview({
+  files,
+  mode
+}: {
+  files: FileChange[] | null
+  mode: DiffMode
+}): React.JSX.Element {
+  if (!files) return <p className="diff-note">Loading changes since the last review...</p>
+  if (files.length === 0)
+    return <p className="diff-note">Nothing has changed since the last review.</p>
+  return (
+    <>
+      {files.map((file, i) => (
+        <FileDiff
+          key={`${file.oldPath ?? ''}>${file.path}`}
+          id={`since-file-${i}`}
+          file={file}
+          mode={mode}
+          staged={false}
+          action={null}
+        />
+      ))}
+    </>
+  )
+}
 
 interface GroupProps {
   title: string
@@ -210,8 +267,9 @@ function FileDiff({
   file: FileChange
   mode: DiffMode
   staged: boolean
-  action: 'Stage' | 'Unstage'
-  onMove: () => void
+  /** The stage or unstage button; null (with no `onMove`) for a read-only diff. */
+  action: 'Stage' | 'Unstage' | null
+  onMove?: () => void
 }): React.JSX.Element {
   return (
     <section className="file-diff" id={id}>
@@ -224,9 +282,11 @@ function FileDiff({
           <span className="add">+{file.additions}</span>{' '}
           <span className="del">-{file.deletions}</span>
         </span>
-        <button type="button" className="file-action" onClick={onMove}>
-          {action}
-        </button>
+        {action && (
+          <button type="button" className="file-action" onClick={onMove}>
+            {action}
+          </button>
+        )}
       </header>
       {file.binary ? (
         <p className="diff-note">Binary file not shown.</p>
@@ -336,6 +396,7 @@ function NumberCell({
   const ui = useCommentUi()
   const no = side === 'old' ? line.oldNo : line.newNo
   if (no === null) return <td className="num" />
+  if (ui.readOnly) return <td className={`num ${className}`}>{no}</td>
   const selected = isSelected(ui.draft, file, staged, side, no)
   return (
     <td className={`num ${className} ${selected ? 'selected' : ''}`}>
