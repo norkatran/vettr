@@ -52,8 +52,9 @@ export function SettingsView(): React.JSX.Element {
           />
         )}
         <p className="hint">
-          Used by "Open in editor". <code>{'{file}'}</code>, <code>{'{line}'}</code> and <code>{'{project}'}</code> are replaced
-          with the file path, line number and project folder.
+          Used by "Open in editor". <code>{'{file}'}</code>, <code>{'{line}'}</code> and{' '}
+          <code>{'{project}'}</code> are replaced with the file path, line number and project
+          folder.
         </p>
       </div>
       {command === defaultSettings.editorCommand && selected !== CUSTOM && (

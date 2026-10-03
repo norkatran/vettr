@@ -20,6 +20,13 @@ describe('buildEditorCommand', () => {
     expect(buildEditorCommand('ed "', '/f', 1, '/p')).toEqual({ command: 'ed', args: ['"'] })
   })
 
+  it('substitutes {project}', () => {
+    expect(buildEditorCommand('code {project} -g {file}:{line}', '/p/a.ts', 3, '/p')).toEqual({
+      command: 'code',
+      args: ['/p', '-g', '/p/a.ts:3']
+    })
+  })
+
   it('does not interpret $ patterns in the path', () => {
     expect(buildEditorCommand('ed {file}', '/a/$&.ts', 1, '/p')?.args).toEqual(['/a/$&.ts'])
   })
