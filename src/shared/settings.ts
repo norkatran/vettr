@@ -1,6 +1,6 @@
 /** User settings persisted on the host. Add new fields here with a default. */
 export interface Settings {
-  /** Command template for "Open in editor"; `{file}` and `{line}` are substituted. Empty means unset. */
+  /** Command template for "Open in editor"; `{file}`, `{line}` and `{project}` (the project folder) are substituted. Empty means unset. */
   editorCommand: string
 }
 
@@ -12,11 +12,11 @@ export interface EditorPreset {
 }
 
 export const EDITOR_PRESETS: EditorPreset[] = [
-  { label: 'VS Code', command: 'code -g {file}:{line}' },
-  { label: 'Cursor', command: 'cursor -g {file}:{line}' },
-  { label: 'Zed', command: 'zed {file}:{line}' },
-  { label: 'Sublime Text', command: 'subl {file}:{line}' },
-  { label: 'IntelliJ IDEA', command: 'idea --line {line} {file}' }
+  { label: 'VS Code', command: 'code {project} -g {file}:{line}' },
+  { label: 'Cursor', command: 'cursor {project} -g {file}:{line}' },
+  { label: 'Zed', command: 'zed {project} {file}:{line}' },
+  { label: 'Sublime Text', command: 'subl {project} {file}:{line}' },
+  { label: 'IntelliJ IDEA', command: 'idea {project} --line {line} {file}' }
 ]
 
 /** The preset whose command equals `command`, or null when it is empty or custom. */

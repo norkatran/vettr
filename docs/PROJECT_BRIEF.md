@@ -134,8 +134,8 @@ Because editing happens outside the app, three things are needed:
 
 ### 5.3 Open in external editor
 
-- Configurable command template, for example `code -g {file}:{line}`.
-- Clicking from the diff should land on the exact line.
+- Configurable command template, for example `code {project} -g {file}:{line}` (`{project}` makes the editor open the project folder too).
+- Clicking from the diff should land on the exact line. Built: each file header in the Changes view has a 3-dot menu (right of Stage/Unstage) whose first item is "Open in editor", landing on the file's first added line (per-line opening may follow). The template is split into argv and `{file}`/`{line}`/`{project}` substituted per argument, then spawned detached without a shell (`buildEditorCommand`, IPC `editor:open`); the path must stay inside the project. Disabled for deleted files; an unset command tells the user to choose one in Settings.
 - Offer presets for common editors plus a custom command.
 - Decided: the command lives in a general **Settings** view (a Settings item at the bottom of the activity bar, which opens a view in the main area). Settings are stored host-side in `settings.json` under Electron's `userData`, validated on load (`src/shared/settings.ts`, `src/main/settingsStore.ts`, IPC `settings:get`/`settings:set`). The theme and API key keep their existing stores. New preferences should be added there rather than getting their own files.
 

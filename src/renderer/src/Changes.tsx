@@ -1,6 +1,6 @@
 import { rangeOf, type Side, snapshotLines } from '@shared/comments'
 import { changedFileCount, type DiffLine, type FileChange, splitRows } from '@shared/diff'
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import {
   CommentContext,
   type CommentUi,
@@ -140,6 +140,7 @@ export function Changes({ project, changes, review, send }: ChangesProps): React
             <Group
               title="Staged changes"
               action="Unstage"
+              project={project}
               files={staged}
               firstIndex={0}
               mode={mode}
@@ -148,6 +149,7 @@ export function Changes({ project, changes, review, send }: ChangesProps): React
             <Group
               title="Unstaged changes"
               action="Stage"
+              project={project}
               files={unstaged}
               firstIndex={staged.length}
               mode={mode}
@@ -199,10 +201,19 @@ interface GroupProps {
   /** Index of the first file in the combined staged-then-unstaged list, for scroll anchors. */
   firstIndex: number
   mode: DiffMode
+  project: string
   onMove: (files: FileChange[]) => Promise<void>
 }
 
-function Group({ title, action, files, firstIndex, mode, onMove }: GroupProps): React.JSX.Element {
+function Group({
+  title,
+  action,
+  files,
+  firstIndex,
+  mode,
+  project,
+  onMove
+}: GroupProps): React.JSX.Element {
   return (
     <details className="change-group" open>
       <summary>
@@ -232,6 +243,7 @@ function Group({ title, action, files, firstIndex, mode, onMove }: GroupProps): 
           staged={action === 'Unstage'}
           action={action}
           onMove={() => onMove([file])}
+          project={project}
         />
       ))}
     </details>
@@ -261,7 +273,8 @@ function FileDiff({
   mode,
   staged,
   action,
-  onMove
+  onMove,
+  project
 }: {
   id: string
   file: FileChange
@@ -270,6 +283,8 @@ function FileDiff({
   /** The stage or unstage button; null (with no `onMove`) for a read-only diff. */
   action: 'Stage' | 'Unstage' | null
   onMove?: () => void
+  /** Set to offer the file menu (open in editor); omitted for a read-only diff. */
+  project?: string
 }): React.JSX.Element {
   return (
     <section className="file-diff" id={id}>
@@ -287,6 +302,7 @@ function FileDiff({
             {action}
           </button>
         )}
+        {project && <FileMenu project={project} file={file} />}
       </header>
       {file.binary ? (
         <p className="diff-note">Binary file not shown.</p>
@@ -437,5 +453,65 @@ function SplitCells({
       <NumberCell line={line} side={side} file={file} staged={staged} className={line.kind} />
       <td className={`code ${line.kind}`}>{line.text}</td>
     </>
+  )
+}
+
+/** The line to land on in the editor: the first added line, else the first line of the diff. */
+function firstLine(file: FileChange): number {
+  const lines = file.hunks.flatMap((h) => h.lines)
+  const line = lines.find((l) => l.kind === 'add') ?? lines.find((l) => l.newNo !== null)
+  return line?.newNo ?? 1
+}
+
+/** The 3-dot menu on a file's diff header. */
+function FileMenu({ project, file }: { project: string; file: FileChange }): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const notify = useNotify()
+  const ref = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onMouse = (e: MouseEvent): void => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onMouse)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onMouse)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+  const openInEditor = async (): Promise<void> => {
+    setOpen(false)
+    const failure = await window.agentide.openInEditor(project, file.path, firstLine(file))
+    if (failure) notify('Open in editor failed', failure)
+  }
+  return (
+    <span className="file-menu" ref={ref}>
+      <button
+        type="button"
+        className="file-action file-menu-button"
+        aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div className="file-menu-popup" role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            disabled={file.status === 'deleted'}
+            onClick={() => void openInEditor()}
+          >
+            Open in editor
+          </button>
+        </div>
+      )}
+    </span>
   )
 }

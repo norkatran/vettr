@@ -50,6 +50,8 @@ export interface AgentideApi {
   hasApiKey(): Promise<boolean>
   /** Save the API key (encrypted on the host); resolves to null or an error message. */
   setApiKey(key: string): Promise<string | null>
+  /** Open a project file in the user's editor at `line`; resolves to null or a message for the user. */
+  openInEditor(project: string, path: string, line: number): Promise<string | null>
   getSettings(): Promise<Settings>
   /** Validate and persist settings; resolves to the settings now in effect. */
   setSettings(settings: Settings): Promise<Settings>
@@ -76,6 +78,7 @@ export const IpcChannel = {
   agentEvent: 'agent:event',
   hasApiKey: 'apikey:status',
   setApiKey: 'apikey:set',
+  openInEditor: 'editor:open',
   getSettings: 'settings:get',
   setSettings: 'settings:set'
 } as const

@@ -35,6 +35,8 @@ const api: AgentideApi = {
   },
   hasApiKey: () => ipcRenderer.invoke(IpcChannel.hasApiKey),
   setApiKey: (key) => ipcRenderer.invoke(IpcChannel.setApiKey, key),
+  openInEditor: (project, path, line) =>
+    ipcRenderer.invoke(IpcChannel.openInEditor, project, path, line),
   getSettings: () => ipcRenderer.invoke(IpcChannel.getSettings),
   setSettings: (settings) => ipcRenderer.invoke(IpcChannel.setSettings, settings)
 }

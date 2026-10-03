@@ -1,6 +1,7 @@
 import { execFile, spawn } from 'node:child_process'
-import { join } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
+import { buildEditorCommand } from '@shared/editor'
 import { IpcChannel } from '@shared/ipc'
 import {
   app,
@@ -196,6 +197,35 @@ void app.whenReady().then(async () => {
   )
   ipcMain.handle(IpcChannel.agentInterrupt, () => attempt(() => agent.interrupt()).then(() => {}))
   ipcMain.handle(IpcChannel.agentStop, () => agent.stop())
+  ipcMain.handle(
+    IpcChannel.openInEditor,
+    async (_event, project: string, path: string, line: number) => {
+      const noEditor = 'No editor is set. Choose one in Settings.'
+      const template = getSettings().editorCommand
+      if (!template) return noEditor
+      const file = resolve(project, path)
+      if (relative(project, file).startsWith('..')) return 'That file is outside the project.'
+      const built = buildEditorCommand(
+        template,
+        file,
+        Number.isInteger(line) && line > 0 ? line : 1,
+        project
+      )
+      if (!built) return noEditor
+      return new Promise<string | null>((done) => {
+        const child = spawn(built.command, built.args, {
+          cwd: project,
+          detached: true,
+          stdio: 'ignore'
+        })
+        child.once('error', (err) => done(`Could not run "${built.command}": ${err.message}`))
+        child.once('spawn', () => {
+          child.unref()
+          done(null)
+        })
+      })
+    }
+  )
   ipcMain.handle(IpcChannel.getSettings, () => getSettings())
   ipcMain.handle(IpcChannel.setSettings, (_event, next: unknown) => updateSettings(next))
   ipcMain.handle(IpcChannel.hasApiKey, async () => (await apiKeys.get()) !== null)
