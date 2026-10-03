@@ -1,6 +1,7 @@
 import { rangeOf, type Side, snapshotLines } from '@shared/comments'
 import { changedFileCount, type DiffLine, type FileChange, splitRows } from '@shared/diff'
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { highlightHunk } from '@shared/highlight'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CommentContext,
   type CommentUi,
@@ -320,6 +321,7 @@ function FileDiff({
                 key={hunk.header + hunk.lines[0]?.text}
                 header={hunk.header}
                 lines={hunk.lines}
+                path={file.path}
                 mode={mode}
                 file={file.path}
                 staged={staged}
@@ -335,17 +337,20 @@ function FileDiff({
 function HunkRows({
   header,
   lines,
+  path,
   mode,
   file,
   staged
 }: {
   header: string
   lines: DiffLine[]
+  path: string
   mode: DiffMode
   file: string
   staged: boolean
 }): React.JSX.Element {
   const split = mode === 'split'
+  const html = useMemo(() => highlightHunk(path, lines), [path, lines])
   return (
     <>
       <tr className="hunk-header">
@@ -355,8 +360,8 @@ function HunkRows({
         ? splitRows(lines).map((row) => (
             <Fragment key={`${row.left?.oldNo}:${row.right?.newNo}`}>
               <tr>
-                <SplitCells line={row.left} side="old" file={file} staged={staged} />
-                <SplitCells line={row.right} side="new" file={file} staged={staged} />
+                <SplitCells line={row.left} side="old" file={file} staged={staged} html={html} />
+                <SplitCells line={row.right} side="new" file={file} staged={staged} html={html} />
               </tr>
               <LineComments
                 file={file}
@@ -381,7 +386,7 @@ function HunkRows({
                 <NumberCell line={line} side="new" file={file} staged={staged} />
                 <td className="code">
                   <span className="sign">{SIGN[line.kind]}</span>
-                  {line.text}
+                  <Code line={line} html={html} />
                 </td>
               </tr>
               <LineComments file={file} staged={staged} side="old" no={line.oldNo} colSpan={3} />
@@ -389,6 +394,17 @@ function HunkRows({
             </Fragment>
           ))}
     </>
+  )
+}
+
+/** A line's text, syntax highlighted when a grammar is available. */
+function Code({ line, html }: { line: DiffLine; html: Map<DiffLine, string> }) {
+  const markup = html.get(line)
+  // highlight.js escapes the source text, so the markup contains only its own token spans.
+  return markup === undefined ? (
+    <>{line.text}</>
+  ) : (
+    <span dangerouslySetInnerHTML={{ __html: markup }} />
   )
 }
 
@@ -433,12 +449,14 @@ function SplitCells({
   line,
   side,
   file,
-  staged
+  staged,
+  html
 }: {
   line: DiffLine | null
   side: Side
   file: string
   staged: boolean
+  html: Map<DiffLine, string>
 }) {
   if (!line) {
     return (
@@ -451,7 +469,9 @@ function SplitCells({
   return (
     <>
       <NumberCell line={line} side={side} file={file} staged={staged} className={line.kind} />
-      <td className={`code ${line.kind}`}>{line.text}</td>
+      <td className={`code ${line.kind}`}>
+        <Code line={line} html={html} />
+      </td>
     </>
   )
 }

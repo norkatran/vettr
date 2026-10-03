@@ -1081,3 +1081,77 @@ button.link:hover:not(:disabled) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Syntax highlighting (highlight.js token classes) */
+:root,
+:root[data-theme="dark"] {
+  --hl-comment: #6a9955;
+  --hl-keyword: #c586c0;
+  --hl-string: #ce9178;
+  --hl-number: #b5cea8;
+  --hl-title: #dcdcaa;
+  --hl-type: #4ec9b0;
+  --hl-attr: #9cdcfe;
+  --hl-meta: #569cd6;
+}
+:root[data-theme="light"] {
+  --hl-comment: #008000;
+  --hl-keyword: #af00db;
+  --hl-string: #a31515;
+  --hl-number: #098658;
+  --hl-title: #795e26;
+  --hl-type: #267f99;
+  --hl-attr: #001080;
+  --hl-meta: #0000ff;
+}
+.diff .hljs-comment,
+.diff .hljs-quote {
+  color: var(--hl-comment);
+  font-style: italic;
+}
+.diff .hljs-keyword,
+.diff .hljs-selector-tag,
+.diff .hljs-doctag {
+  color: var(--hl-keyword);
+}
+.diff .hljs-string,
+.diff .hljs-regexp,
+.diff .hljs-template-variable {
+  color: var(--hl-string);
+}
+.diff .hljs-number,
+.diff .hljs-literal,
+.diff .hljs-symbol,
+.diff .hljs-bullet {
+  color: var(--hl-number);
+}
+.diff .hljs-title,
+.diff .hljs-section,
+.diff .hljs-function {
+  color: var(--hl-title);
+}
+.diff .hljs-type,
+.diff .hljs-built_in,
+.diff .hljs-class .hljs-title {
+  color: var(--hl-type);
+}
+.diff .hljs-attr,
+.diff .hljs-attribute,
+.diff .hljs-variable,
+.diff .hljs-params,
+.diff .hljs-property {
+  color: var(--hl-attr);
+}
+.diff .hljs-meta,
+.diff .hljs-tag,
+.diff .hljs-name,
+.diff .hljs-selector-class,
+.diff .hljs-selector-id {
+  color: var(--hl-meta);
+}
+.diff .hljs-emphasis {
+  font-style: italic;
+}
+.diff .hljs-strong {
+  font-weight: bold;
+}
