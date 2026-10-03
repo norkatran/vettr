@@ -1,10 +1,12 @@
-import { changedFileCount } from '@shared/diff'
-import { FileTitle, fileAnchor } from './Changes'
+import { changedFileCount, type FileChange } from '@shared/diff'
+import { useState } from 'react'
+import { FileTitle, fileAnchor, filePaths } from './Changes'
 import type { ChangesState } from './useChanges'
 
 export type View = 'session' | 'changes'
 
 interface SidebarProps {
+  project: string | null
   view: View
   expanded: boolean
   onSelect: (view: View) => void
@@ -45,6 +47,7 @@ function formatBadge(count: number): string {
 const SESSION_STARTED_TEXT = 'Session in progress. Start a new one to clear it.'
 
 export function Sidebar({
+  project,
   view,
   expanded,
   onSelect,
@@ -52,6 +55,18 @@ export function Sidebar({
   changes,
   sessionStarted
 }: SidebarProps): React.JSX.Element {
+  // Interim until the notification system exists
+  const [error, setError] = useState<string | null>(null)
+  const stagedCount = changes.changes?.staged.length ?? 0
+  const move = async (staged: boolean, file: FileChange): Promise<void> => {
+    if (!project) return
+    const paths = filePaths(file)
+    setError(
+      await (staged
+        ? window.agentide.unstageFiles(project, paths)
+        : window.agentide.stageFiles(project, paths))
+    )
+  }
   const active = ITEMS.find((i) => i.view === view)
   const changeCount = changes.changes ? changedFileCount(changes.changes) : 0
   return (
@@ -86,27 +101,46 @@ export function Sidebar({
         <aside className="sidebar">
           <h2>{active?.label}</h2>
           {view === 'changes' && changes.files && changes.files.length > 0 ? (
-            <ul className="file-list">
-              {changes.files.map((file, i) => (
-                <li key={`${i}:${file.oldPath ?? ''}>${file.path}`}>
-                  <button
-                    type="button"
-                    className="file-link"
-                    title={file.path}
-                    onClick={() =>
-                      document.getElementById(fileAnchor(i))?.scrollIntoView({ block: 'start' })
-                    }
-                  >
-                    <span className={`status-letter ${file.status}`}>
-                      {STATUS_LETTER[file.status]}
-                    </span>
-                    <span className="file-name">
-                      <FileTitle file={file} />
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              {error && (
+                <p className="diff-note error" role="alert">
+                  {error}
+                </p>
+              )}
+              <ul className="file-list">
+                {changes.files.map((file, i) => {
+                  const staged = i < stagedCount
+                  return (
+                    <li className="file-row" key={`${i}:${file.oldPath ?? ''}>${file.path}`}>
+                      <button
+                        type="button"
+                        className="file-link"
+                        title={file.path}
+                        onClick={() =>
+                          document.getElementById(fileAnchor(i))?.scrollIntoView({ block: 'start' })
+                        }
+                      >
+                        <span className={`status-letter ${file.status}`}>
+                          {STATUS_LETTER[file.status]}
+                        </span>
+                        <span className="file-name">
+                          <FileTitle file={file} />
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="file-stage"
+                        title={staged ? 'Unstage' : 'Stage'}
+                        aria-label={`${staged ? 'Unstage' : 'Stage'} ${file.path}`}
+                        onClick={() => void move(staged, file)}
+                      >
+                        {staged ? '−' : '+'}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
           ) : (
             <p className="hint">
               {view === 'session' && sessionStarted ? SESSION_STARTED_TEXT : PANEL_TEXT[view]}

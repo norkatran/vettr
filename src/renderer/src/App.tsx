@@ -115,6 +115,7 @@ export function App(): React.JSX.Element {
       </header>
       <div className="body">
         <Sidebar
+          project={project}
           view={view}
           expanded={expanded}
           onSelect={select}

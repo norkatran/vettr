@@ -13,13 +13,24 @@ interface ChangesProps {
 
 export function Changes({ project, changes }: ChangesProps): React.JSX.Element {
   const [mode, setMode] = useState<DiffMode>('unified')
+  const [error, setError] = useState<string | null>(null)
   const { files, loading } = changes
   const count = changes.changes ? changedFileCount(changes.changes) : 0
 
   if (!project) return <Empty>Open a project to see its changes.</Empty>
   if (loading && !files) return <Empty>Loading changes...</Empty>
-  if (!files) return <Empty>Could not read the changes for this project.</Empty>
+  if (!files || !changes.changes) return <Empty>Could not read the changes for this project.</Empty>
   if (files.length === 0) return <Empty>No changes.</Empty>
+
+  const { staged, unstaged } = changes.changes
+  // Interim until the notification system exists
+  const move = async (to: 'stage' | 'unstage', moved: FileChange[]): Promise<void> => {
+    const paths = moved.flatMap(filePaths)
+    const failure = await (to === 'stage'
+      ? window.agentide.stageFiles(project, paths)
+      : window.agentide.unstageFiles(project, paths))
+    setError(failure)
+  }
 
   return (
     <main className="changes">
@@ -41,15 +52,78 @@ export function Changes({ project, changes }: ChangesProps): React.JSX.Element {
           ))}
         </div>
       </div>
+      {error && (
+        <p className="diff-note error" role="alert">
+          {error}
+        </p>
+      )}
+      <Group
+        title="Staged changes"
+        action="Unstage"
+        files={staged}
+        firstIndex={0}
+        mode={mode}
+        onMove={(moved) => move('unstage', moved)}
+      />
+      <Group
+        title="Unstaged changes"
+        action="Stage"
+        files={unstaged}
+        firstIndex={staged.length}
+        mode={mode}
+        onMove={(moved) => move('stage', moved)}
+      />
+    </main>
+  )
+}
+
+/** Every path a file change touches in the index: a rename covers its old and new path. */
+export const filePaths = (file: FileChange): string[] =>
+  file.oldPath ? [file.oldPath, file.path] : [file.path]
+
+interface GroupProps {
+  title: string
+  /** The verb on the buttons: moves the file to the other group. */
+  action: 'Stage' | 'Unstage'
+  files: FileChange[]
+  /** Index of the first file in the combined staged-then-unstaged list, for scroll anchors. */
+  firstIndex: number
+  mode: DiffMode
+  onMove: (files: FileChange[]) => Promise<void>
+}
+
+function Group({ title, action, files, firstIndex, mode, onMove }: GroupProps): React.JSX.Element {
+  return (
+    <details className="change-group" open>
+      <summary>
+        <span>
+          {title} ({files.length})
+        </span>
+        {files.length > 0 && (
+          <button
+            type="button"
+            className="file-action"
+            onClick={(e) => {
+              e.preventDefault()
+              void onMove(files)
+            }}
+          >
+            {action} all
+          </button>
+        )}
+      </summary>
+      {files.length === 0 && <p className="diff-note">Nothing here.</p>}
       {files.map((file, i) => (
         <FileDiff
-          key={`${i}:${file.oldPath ?? ''}>${file.path}`}
-          id={fileAnchor(i)}
+          key={`${file.oldPath ?? ''}>${file.path}`}
+          id={fileAnchor(firstIndex + i)}
           file={file}
           mode={mode}
+          action={action}
+          onMove={() => onMove([file])}
         />
       ))}
-    </main>
+    </details>
   )
 }
 
@@ -73,11 +147,15 @@ export function FileTitle({ file }: { file: FileChange }): React.JSX.Element {
 function FileDiff({
   id,
   file,
-  mode
+  mode,
+  action,
+  onMove
 }: {
   id: string
   file: FileChange
   mode: DiffMode
+  action: 'Stage' | 'Unstage'
+  onMove: () => void
 }): React.JSX.Element {
   return (
     <section className="file-diff" id={id}>
@@ -90,6 +168,9 @@ function FileDiff({
           <span className="add">+{file.additions}</span>{' '}
           <span className="del">-{file.deletions}</span>
         </span>
+        <button type="button" className="file-action" onClick={onMove}>
+          {action}
+        </button>
       </header>
       {file.binary ? (
         <p className="diff-note">Binary file not shown.</p>

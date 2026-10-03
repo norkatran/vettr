@@ -17,6 +17,10 @@ export interface AgentideApi {
   getRepoStatus(project: string): Promise<RepoStatus | null>
   /** Changes split into staged (index against HEAD) and unstaged (working tree against index), or null if unreadable. */
   getChanges(project: string): Promise<RepoChanges | null>
+  /** Stage whole files (paths relative to the repo root); resolves to null or git's error message. */
+  stageFiles(project: string, paths: string[]): Promise<string | null>
+  /** Unstage whole files (include a renamed file's old path); resolves to null or git's error message. */
+  unstageFiles(project: string, paths: string[]): Promise<string | null>
   /**
    * Start a session in the current project with a first prompt. Resolves to null on success or
    * to a message for the user (Docker missing, no API key, ...).
@@ -41,6 +45,8 @@ export const IpcChannel = {
   repoChanged: 'repo:changed',
   getRepoStatus: 'repo:status',
   getChanges: 'repo:changes',
+  stageFiles: 'repo:stage',
+  unstageFiles: 'repo:unstage',
   agentStart: 'agent:start',
   agentSend: 'agent:send',
   agentInterrupt: 'agent:interrupt',

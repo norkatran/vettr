@@ -88,8 +88,8 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 
 Brought forward ahead of line comments (see brief section 6.1). File-level staging only; no hunk staging.
 
-- [ ] Stage and unstage whole files from the Changes view
-- [ ] Split the Changes view into collapsible Staged and Unstaged accordions (a partially staged file appears in both)
+- [x] Stage and unstage whole files from the Changes view (per-file and "all" buttons in the diff, plus a `+`/`−` button beside each file in the sidebar list; `git add --all` / `git reset` with literal pathspecs, errors shown inline until the notification system lands)
+- [x] Split the Changes view into collapsible Staged and Unstaged accordions (a partially staged file appears in both)
 - [ ] Commit message input and a commit button (the user writes the message; the agent never commits)
 - [ ] While committing, grey out the message input and show a spinner beside it
 - [ ] Push button that pushes to `origin` using the host's installed `git`, credentials and config (the agent never pushes); prompting is disabled, so it fails and notifies the user if any input is needed

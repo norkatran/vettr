@@ -95,3 +95,36 @@ export async function getChanges(dir: string): Promise<RepoChanges | null> {
     if (scratch) await rm(scratch, { recursive: true, force: true })
   }
 }
+
+/** What git said when an index operation failed, for showing to the user. */
+function failureMessage(error: unknown): string {
+  const { stderr } = error as { stderr?: string }
+  return stderr?.trim() || (error as Error).message
+}
+
+async function indexOp(dir: string, args: string[], paths: string[]): Promise<string | null> {
+  if (paths.length === 0) return null
+  try {
+    // Literal pathspecs: file names containing `*` or `[` must not be treated as globs
+    await run('git', ['--literal-pathspecs', ...args, '--', ...paths], { cwd: dir })
+    return null
+  } catch (error) {
+    return failureMessage(error)
+  }
+}
+
+/**
+ * Stage whole files, including deletions and untracked files. Resolves to null on success or
+ * to git's message on failure. Paths are relative to the repo root `dir`.
+ */
+export function stageFiles(dir: string, paths: string[]): Promise<string | null> {
+  return indexOp(dir, ['add', '--all'], paths)
+}
+
+/**
+ * Unstage whole files. `git reset` rather than `restore --staged` because it also works before
+ * the first commit. For a staged rename pass both the old and new path.
+ */
+export function unstageFiles(dir: string, paths: string[]): Promise<string | null> {
+  return indexOp(dir, ['reset', '-q'], paths)
+}

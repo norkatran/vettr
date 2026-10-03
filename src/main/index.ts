@@ -15,7 +15,7 @@ import {
 import { createApiKeyStore } from './apiKey'
 import { saveApiKey } from './apiKeyCheck'
 import { attempt, ClaudeAdapter } from './claudeAdapter'
-import { findRepoRoot, getChanges, getRepoStatus } from './git'
+import { findRepoRoot, getChanges, getRepoStatus, stageFiles, unstageFiles } from './git'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
 import { checkDocker, startSandbox, stopSandbox } from './sandbox'
 import { watchTree } from './watcher'
@@ -152,6 +152,12 @@ void app.whenReady().then(async () => {
   ipcMain.handle(IpcChannel.getCurrentProject, () => getProjectState().current)
   ipcMain.handle(IpcChannel.getRepoStatus, (_event, project: string) => getRepoStatus(project))
   ipcMain.handle(IpcChannel.getChanges, (_event, project: string) => getChanges(project))
+  ipcMain.handle(IpcChannel.stageFiles, (_event, project: string, paths: string[]) =>
+    stageFiles(project, paths)
+  )
+  ipcMain.handle(IpcChannel.unstageFiles, (_event, project: string, paths: string[]) =>
+    unstageFiles(project, paths)
+  )
   ipcMain.handle(IpcChannel.agentStart, (_event, prompt: string) =>
     attempt(async () => {
       const project = getProjectState().current

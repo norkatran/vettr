@@ -12,7 +12,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { findRepoRoot, getChanges, getRepoStatus } from './git'
+import { findRepoRoot, getChanges, getRepoStatus, stageFiles, unstageFiles } from './git'
 
 let root = ''
 
@@ -211,5 +211,76 @@ describe('getChanges', () => {
     writeFileSync(join(root, 'img.bin'), Buffer.from([0, 1, 2, 0, 255, 0]))
     const changes = await getChanges(root)
     expect(changes?.unstaged[0]).toMatchObject({ path: 'img.bin', binary: true, hunks: [] })
+  })
+})
+
+describe('stageFiles and unstageFiles', () => {
+  const git = (...args: string[]): string =>
+    execFileSync('git', ['-C', root, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+      encoding: 'utf8'
+    })
+  const write = (name: string, content: string): void => {
+    writeFileSync(join(root, name), content)
+  }
+  const status = (): string => git('status', '--porcelain')
+
+  it('stages and unstages an untracked file before the first commit', async () => {
+    git('init', '-q', '-b', 'main')
+    write('a.txt', 'a\n')
+    expect(await stageFiles(root, ['a.txt'])).toBeNull()
+    expect(status()).toBe('A  a.txt\n')
+    expect(await unstageFiles(root, ['a.txt'])).toBeNull()
+    expect(status()).toBe('?? a.txt\n')
+  })
+
+  it('stages modifications and deletions', async () => {
+    git('init', '-q', '-b', 'main')
+    write('mod.txt', 'a\n')
+    write('del.txt', 'a\n')
+    git('add', '-A')
+    git('commit', '-q', '-m', 'c')
+    write('mod.txt', 'b\n')
+    rmSync(join(root, 'del.txt'))
+    expect(await stageFiles(root, ['mod.txt', 'del.txt'])).toBeNull()
+    expect(status()).toBe('D  del.txt\nM  mod.txt\n')
+    expect(await unstageFiles(root, ['mod.txt', 'del.txt'])).toBeNull()
+    expect(status()).toBe(' D del.txt\n M mod.txt\n')
+  })
+
+  it('moves a rename in one step when given both paths', async () => {
+    git('init', '-q', '-b', 'main')
+    write('old.txt', 'some long enough content\nto be detected\nas a rename\n')
+    git('add', '-A')
+    git('commit', '-q', '-m', 'c')
+    renameSync(join(root, 'old.txt'), join(root, 'new.txt'))
+    await stageFiles(root, ['old.txt', 'new.txt'])
+    expect(status()).toBe('R  old.txt -> new.txt\n')
+    await unstageFiles(root, ['old.txt', 'new.txt'])
+    expect(status()).toBe(' D old.txt\n?? new.txt\n')
+  })
+
+  it('treats paths literally, not as globs', async () => {
+    git('init', '-q', '-b', 'main')
+    write('a.txt', 'a\n')
+    write('*.txt', 'star\n')
+    expect(await stageFiles(root, ['*.txt'])).toBeNull()
+    expect(status()).toBe('A  *.txt\n?? a.txt\n')
+  })
+
+  it('does nothing for an empty list', async () => {
+    git('init', '-q', '-b', 'main')
+    write('a.txt', 'a\n')
+    expect(await stageFiles(root, [])).toBeNull()
+    expect(await unstageFiles(root, [])).toBeNull()
+    expect(status()).toBe('?? a.txt\n')
+  })
+
+  it("returns git's message when it fails", async () => {
+    git('init', '-q', '-b', 'main')
+    expect(await stageFiles(root, ['missing.txt'])).toContain('missing.txt')
+  })
+
+  it('returns the error text when git cannot run at all', async () => {
+    expect(await stageFiles(join(root, 'gone'), ['a'])).toEqual(expect.any(String))
   })
 })

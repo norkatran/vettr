@@ -284,7 +284,29 @@ button:disabled {
   padding: 0;
   list-style: none;
 }
+.file-row {
+  display: flex;
+  align-items: center;
+}
+.file-row:hover {
+  background: var(--border);
+}
+.file-stage {
+  flex: none;
+  width: 22px;
+  margin-right: 12px;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1;
+}
+.file-stage:hover {
+  background: var(--bg-input);
+}
 .sidebar .file-link {
+  flex: 1;
+  min-width: 0;
   display: flex;
   gap: 8px;
   width: 100%;
@@ -624,4 +646,25 @@ button.link {
 button.link:hover:not(:disabled) {
   background: transparent;
   color: var(--text-strong);
+}
+.change-group > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.file-action {
+  padding: 1px 8px;
+  font-size: 11px;
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.diff-note.error {
+  color: #f85149;
+  white-space: pre-wrap;
 }
