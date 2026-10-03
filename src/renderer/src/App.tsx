@@ -4,10 +4,8 @@ import { Changes } from './Changes'
 import { Session } from './Session'
 import { Sidebar, type View } from './Sidebar'
 import { StatusBar } from './StatusBar'
+import { useAgentSession } from './useAgentSession'
 import { useChanges } from './useChanges'
-
-// Placeholder until the agent adapter and Session view exist (milestone 2).
-function startSession(_prompt: string): void {}
 
 const THEME_KEY = 'agentide.theme'
 const darkQuery = '(prefers-color-scheme: dark)'
@@ -53,10 +51,9 @@ export function App(): React.JSX.Element {
   const [project, setProject] = useState<string | null>(null)
   const [view, setView] = useState<View>('session')
   const [expanded, setExpanded] = useState(true)
-  // Changing the key remounts Session, which discards its state and returns it to the prompt.
-  const [sessionKey, setSessionKey] = useState(0)
   const [theme, toggleTheme] = useTheme()
   const changes = useChanges(project)
+  const session = useAgentSession(project)
 
   // Clicking the active view collapses the side panel, as in VS Code.
   const select = (next: View): void => {
@@ -68,7 +65,7 @@ export function App(): React.JSX.Element {
   }
 
   const newSession = (): void => {
-    setSessionKey((k) => k + 1)
+    void session.newSession()
     setView('session')
   }
 
@@ -121,9 +118,10 @@ export function App(): React.JSX.Element {
           onSelect={select}
           onNewSession={newSession}
           changes={changes}
+          sessionStarted={session.state.status !== 'idle'}
         />
         {view === 'session' ? (
-          <Session key={sessionKey} project={project} onSubmit={startSession} />
+          <Session project={project} session={session} />
         ) : (
           <Changes project={project} changes={changes} />
         )}

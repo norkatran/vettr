@@ -1,3 +1,6 @@
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { type AgentEvent, encodeLine, LineBuffer, parseCommandLine } from '../shared/agent'
 import { Translator } from './translate'
@@ -60,7 +63,13 @@ async function pump(cwd: string, apiKey: string) {
       allowDangerouslySkipPermissions: true,
       // Project settings and CLAUDE.md only, never user settings from the container's home
       settingSources: ['project'],
-      env: { ...process.env, ANTHROPIC_API_KEY: apiKey },
+      env: {
+        ...process.env,
+        ANTHROPIC_API_KEY: apiKey,
+        // Our own temp dir: Claude Code refuses /tmp/claude-<uid> when it is root-owned, which
+        // happens if the project's host path (mounted at the same path) runs through /tmp
+        CLAUDE_CODE_TMPDIR: mkdtempSync(join(tmpdir(), 'agentide-'))
+      },
       stderr: (data) => process.stderr.write(data)
     }
   })

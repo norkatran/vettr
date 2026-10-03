@@ -85,6 +85,14 @@ Decided: `ClaudeAdapter` (`src/main/claudeAdapter.ts`) implements the interface 
 
 IPC (`src/shared/ipc.ts`): `agentStart(prompt)`, `agentSend`, `agentInterrupt`, `agentStop`, `onAgentEvent`, `hasApiKey` and `setApiKey`. The start and send calls resolve to `null` or an error message rather than rejecting. `agentStart` uses the main process's current project instead of a path from the renderer, and the key never reaches the renderer after it is saved.
 
+### Session view
+
+Decided: the Session view is a transcript plus one input. Its state is a pure reducer over agent events (`src/shared/session.ts`) held in `useAgentSession` above the views, so switching to Changes and back keeps the transcript, and opening another project resets it. States: idle (the prompt), running (Stop button, "Working..."), waiting (follow-up input) and ended (a banner with New session). Items are the user's messages, assistant text, tool calls (collapsed rows with a one-line summary, expandable to the input and output, output truncated at 5000 characters), file edits (path relative to the project) and errors. A turn the user stopped shows "Interrupted" and hides the error the SDK reports for it. Assistant text is plain text for now (no Markdown rendering). A failed start returns to the prompt with the text kept and the message shown.
+
+API key: entered in the Session view when none is saved (and replaceable with "Change API key"). It is checked against `GET /v1/models` before saving (`src/main/apiKeyCheck.ts`) because Claude Code treats a rejected key as retryable and backs off through 11 attempts over several minutes, which looks like a hang. Only a 401 or 403 rejects it; being offline does not block saving.
+
+The runner points Claude Code at its own temp directory (`CLAUDE_CODE_TMPDIR`). Mounting the project at its host path makes Docker create the parent directories as root, and Claude Code refuses a root-owned `/tmp/claude-<uid>`, which broke projects under `/tmp`.
+
 ### Agent adapter interface (sketch)
 
 The UI should depend only on a small interface, roughly:

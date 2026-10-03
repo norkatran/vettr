@@ -9,6 +9,8 @@ interface SidebarProps {
   onSelect: (view: View) => void
   onNewSession: () => void
   changes: ChangesState
+  /** A session has started, so the empty-state hint no longer applies. */
+  sessionStarted: boolean
 }
 
 const ITEMS: { view: View; label: string; icon: React.JSX.Element }[] = [
@@ -33,12 +35,15 @@ const PANEL_TEXT: Record<View, string> = {
   changes: 'No changes to review.'
 }
 
+const SESSION_STARTED_TEXT = 'Session in progress. Start a new one to clear it.'
+
 export function Sidebar({
   view,
   expanded,
   onSelect,
   onNewSession,
-  changes
+  changes,
+  sessionStarted
 }: SidebarProps): React.JSX.Element {
   const active = ITEMS.find((i) => i.view === view)
   return (
@@ -86,7 +91,9 @@ export function Sidebar({
               ))}
             </ul>
           ) : (
-            <p className="hint">{PANEL_TEXT[view]}</p>
+            <p className="hint">
+              {view === 'session' && sessionStarted ? SESSION_STARTED_TEXT : PANEL_TEXT[view]}
+            </p>
           )}
           {view === 'session' && (
             <button type="button" className="new-session" onClick={onNewSession}>

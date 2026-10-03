@@ -13,6 +13,7 @@ import {
   safeStorage
 } from 'electron'
 import { createApiKeyStore } from './apiKey'
+import { saveApiKey } from './apiKeyCheck'
 import { attempt, ClaudeAdapter } from './claudeAdapter'
 import { findRepoRoot, getChanges, getRepoStatus } from './git'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
@@ -165,7 +166,7 @@ void app.whenReady().then(async () => {
   ipcMain.handle(IpcChannel.agentStop, () => agent.stop())
   ipcMain.handle(IpcChannel.hasApiKey, async () => (await apiKeys.get()) !== null)
   ipcMain.handle(IpcChannel.setApiKey, (_event, key: string) =>
-    attempt(() => apiKeys.set(key.trim()))
+    attempt(() => saveApiKey(apiKeys, key, (url, init) => fetch(url, init)))
   )
   buildMenu()
   if (getProjectState().current) void watchProject(getProjectState().current as string)
