@@ -88,13 +88,13 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 
 Brought forward ahead of line comments (see brief section 6.1). File-level staging only; no hunk staging.
 
-- [x] Stage and unstage whole files from the Changes view (per-file and "all" buttons in the diff, plus a `+`/`−` button beside each file in the sidebar list; `git add --all` / `git reset` with literal pathspecs, errors shown inline until the notification system lands)
+- [x] Stage and unstage whole files from the Changes view (per-file and "all" buttons in the diff, plus a `+`/`−` button beside each file in the sidebar list; `git add --all` / `git reset` with literal pathspecs)
 - [x] Split the Changes view into collapsible Staged and Unstaged accordions (a partially staged file appears in both)
-- [x] Commit message input and a commit button, at the top of the Changes side panel (Ctrl+Enter commits; the user writes the message; the agent never commits; errors shown inline for now)
+- [x] Commit message input and a commit button, at the top of the Changes side panel (Ctrl+Enter commits; the user writes the message; the agent never commits)
 - [x] While committing, grey out the message input and show a spinner in the button beside "Committing"
 - [x] The status bar's branch and `↑ahead`/`↓behind` area is itself the push control (clickable only when there are commits to push): runs `git push` to the branch's upstream using the host's installed `git`, credentials and config (the agent never pushes); prompting is disabled, so it fails if any input is needed. Failures show inline in the status bar until the notification system lands
 - [x] Same busy state (disabled with a spinner, "Pushing") while pushing
-- [ ] Notification system for git errors (hooks, auth, rejected pushes, nothing staged), showing git's output and keeping the typed commit message
+- [x] Notification system for git errors (hooks, auth, rejected pushes, nothing staged): dismissable popups in the top-right of the window showing git's output, kept until dismissed; the typed commit message is kept (`src/renderer/src/Notifications.tsx`, `useNotify()`)
 - [ ] Decide how to handle push when no upstream is set (`push -u`)
 
 ### 5. Line comments

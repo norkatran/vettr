@@ -723,10 +723,53 @@ button.link:hover:not(:disabled) {
 .statusbar .status-button:disabled {
   background: transparent;
 }
-.statusbar .status-error {
-  color: #e5534b;
-  max-width: 40vw;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+.notifications {
+  position: fixed;
+  top: 44px;
+  right: 12px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100vw - 24px));
+  pointer-events: none;
+}
+.notification {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-left: 3px solid #f85149;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+.notification-body {
+  flex: 1;
+  min-width: 0;
+}
+.notification-body strong {
+  color: var(--text-strong);
+  font-size: 12px;
+}
+.notification-body pre {
+  margin: 4px 0 0;
+  max-height: 200px;
+  overflow: auto;
+  font: inherit;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.notification-close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
 }

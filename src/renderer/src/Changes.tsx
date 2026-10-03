@@ -1,5 +1,6 @@
 import { changedFileCount, type DiffLine, type FileChange, splitRows } from '@shared/diff'
 import { useState } from 'react'
+import { useNotify } from './Notifications'
 import type { ChangesState } from './useChanges'
 
 export type DiffMode = 'unified' | 'split'
@@ -13,7 +14,7 @@ interface ChangesProps {
 
 export function Changes({ project, changes }: ChangesProps): React.JSX.Element {
   const [mode, setMode] = useState<DiffMode>('unified')
-  const [error, setError] = useState<string | null>(null)
+  const notify = useNotify()
   const { files, loading } = changes
   const count = changes.changes ? changedFileCount(changes.changes) : 0
 
@@ -23,13 +24,12 @@ export function Changes({ project, changes }: ChangesProps): React.JSX.Element {
   if (files.length === 0) return <Empty>No changes.</Empty>
 
   const { staged, unstaged } = changes.changes
-  // Interim until the notification system exists
   const move = async (to: 'stage' | 'unstage', moved: FileChange[]): Promise<void> => {
     const paths = moved.flatMap(filePaths)
     const failure = await (to === 'stage'
       ? window.agentide.stageFiles(project, paths)
       : window.agentide.unstageFiles(project, paths))
-    setError(failure)
+    if (failure) notify(to === 'stage' ? 'Stage failed' : 'Unstage failed', failure)
   }
 
   return (
@@ -52,11 +52,6 @@ export function Changes({ project, changes }: ChangesProps): React.JSX.Element {
           ))}
         </div>
       </div>
-      {error && (
-        <p className="diff-note error" role="alert">
-          {error}
-        </p>
-      )}
       <Group
         title="Staged changes"
         action="Unstage"

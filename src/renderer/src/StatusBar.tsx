@@ -1,6 +1,7 @@
 import type { RepoStatus } from '@shared/repoStatus'
 import { otherTheme, type Theme } from '@shared/theme'
 import { useEffect, useState } from 'react'
+import { useNotify } from './Notifications'
 
 interface StatusBarProps {
   project: string | null
@@ -43,14 +44,13 @@ function repoName(project: string): string {
 export function StatusBar({ project, theme, onToggleTheme }: StatusBarProps): React.JSX.Element {
   const status = useRepoStatus(project)
   const [pushing, setPushing] = useState(false)
-  // Interim until the notification system exists
-  const [pushError, setPushError] = useState<string | null>(null)
+  const notify = useNotify()
   const push = async (): Promise<void> => {
     if (!project || pushing) return
     setPushing(true)
     const failure = await window.agentide.push(project)
     setPushing(false)
-    setPushError(failure)
+    if (failure) notify('Push failed', failure)
   }
   const target = otherTheme(theme)
 
@@ -101,11 +101,6 @@ export function StatusBar({ project, theme, onToggleTheme }: StatusBarProps): Re
               {status.changes === 0 ? 'clean' : `${status.changes} changed`}
             </span>
           </>
-        )}
-        {pushError && (
-          <span className="status-error" title={pushError}>
-            Push failed: {pushError.split('\n')[0]}
-          </span>
         )}
       </div>
       <button

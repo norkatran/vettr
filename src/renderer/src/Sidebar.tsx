@@ -1,5 +1,6 @@
 import { changedFileCount, type FileChange } from '@shared/diff'
 import { useState } from 'react'
+import { useNotify } from './Notifications'
 import { FileTitle, fileAnchor, filePaths } from './Changes'
 import type { ChangesState } from './useChanges'
 
@@ -55,19 +56,17 @@ export function Sidebar({
   changes,
   sessionStarted
 }: SidebarProps): React.JSX.Element {
-  // Interim until the notification system exists
-  const [error, setError] = useState<string | null>(null)
+  const notify = useNotify()
   const [message, setMessage] = useState('')
   const [committing, setCommitting] = useState(false)
   const stagedCount = changes.changes?.staged.length ?? 0
   const move = async (staged: boolean, file: FileChange): Promise<void> => {
     if (!project) return
     const paths = filePaths(file)
-    setError(
-      await (staged
-        ? window.agentide.unstageFiles(project, paths)
-        : window.agentide.stageFiles(project, paths))
-    )
+    const failure = await (staged
+      ? window.agentide.unstageFiles(project, paths)
+      : window.agentide.stageFiles(project, paths))
+    if (failure) notify(staged ? 'Unstage failed' : 'Stage failed', failure)
   }
   const canCommit = !!project && stagedCount > 0 && message.trim() !== '' && !committing
   const commit = async (): Promise<void> => {
@@ -75,9 +74,9 @@ export function Sidebar({
     setCommitting(true)
     const failure = await window.agentide.commitStaged(project, message)
     setCommitting(false)
-    setError(failure)
     // Keep the typed message on failure so nothing is lost
     if (failure === null) setMessage('')
+    else notify('Commit failed', failure)
   }
   const active = ITEMS.find((i) => i.view === view)
   const changeCount = changes.changes ? changedFileCount(changes.changes) : 0
@@ -136,11 +135,6 @@ export function Sidebar({
                 )}
               </button>
             </div>
-          )}
-          {view === 'changes' && error && (
-            <p className="diff-note error" role="alert">
-              {error}
-            </p>
           )}
           {view === 'changes' && changes.files && changes.files.length > 0 ? (
             <ul className="file-list">
