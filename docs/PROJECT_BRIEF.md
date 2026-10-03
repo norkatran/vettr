@@ -134,7 +134,7 @@ Because editing happens outside the app, three things are needed:
 
 ### 5.4 Checkpoints and undo
 
-Users need to roll back a bad agent turn without losing their own uncommitted work. Options include a snapshot per turn (for example a hidden ref or stash-like commit) that can be restored. Not needed for the first milestone, but the session model should leave room for it.
+Users need to roll back a bad agent turn without losing their own uncommitted work. Options include a snapshot per turn (for example a hidden ref or stash-like commit) that can be restored. Decided: deferred past the MVP; for now the user manages commits and repo state themselves. The session model was reviewed and needs no preparation, because adding checkpoints later is purely additive: a turn number and an optional `checkpoint` ref on user transcript items, plus a host-side snapshot taken in the adapter before each `start` and `send` (no runner protocol change). Prefer a git-based snapshot in a hidden ref, stored per project on the host so it outlives the session (a fatal error ends the session and a project switch resets the transcript). It should not rely on the SDK's own file checkpointing, which would miss Bash-made changes and the user's hand edits.
 
 ### 5.5 Command safety
 

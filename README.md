@@ -82,8 +82,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 - [x] Interrupt the current turn (Stop button; see the real-API check below)
 - [x] Send follow-up messages in the same session
 - [x] Surface errors and agent exit clearly
-- [ ] Keep the session model open to per-turn checkpoints later
-- [ ] Verify a full turn against the real API with a real key: tool calls, a file edit, a follow-up, Stop, and a recoverable error (so far only the container path and the UI were exercised, the latter with synthetic events)
+- [x] Verify a full turn against the real API with a real credential (confirmed working in the real app with an OAuth token)
 
 ### 4. Line comments
 
@@ -118,7 +117,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 
 ### Later
 
-- [ ] Checkpoints and undo per agent turn
+- [ ] Checkpoints and undo per agent turn (the session model can take them additively: see brief section 5.4)
 - [ ] Approval prompts and a user-extendable allowlist for shell commands
 - [ ] Restricted network access for the sandbox container
 - [ ] Host-side API proxy that injects the key, so the container only gets a placeholder token and `ANTHROPIC_BASE_URL` (verify the SDK honours the base URL override; bind the proxy to the Docker bridge only)
