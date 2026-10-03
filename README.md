@@ -91,7 +91,7 @@ Brought forward ahead of line comments (see brief section 6.1). File-level stagi
 - [x] Stage and unstage whole files from the Changes view (per-file and "all" buttons in the diff, plus a `+`/`−` button beside each file in the sidebar list; `git add --all` / `git reset` with literal pathspecs, errors shown inline until the notification system lands)
 - [x] Split the Changes view into collapsible Staged and Unstaged accordions (a partially staged file appears in both)
 - [x] Commit message input and a commit button, at the top of the Changes side panel (Ctrl+Enter commits; the user writes the message; the agent never commits; errors shown inline for now)
-- [ ] While committing, grey out the message input and show a spinner beside it
+- [x] While committing, grey out the message input and show a spinner in the button beside "Committing"
 - [ ] Push button that pushes to `origin` using the host's installed `git`, credentials and config (the agent never pushes); prompting is disabled, so it fails and notifies the user if any input is needed
 - [ ] Same busy state (disabled with a spinner) while pushing
 - [ ] Notification system for git errors (hooks, auth, rejected pushes, nothing staged), showing git's output and keeping the typed commit message

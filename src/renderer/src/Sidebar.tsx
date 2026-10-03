@@ -127,7 +127,13 @@ export function Sidebar({
                 }}
               />
               <button type="button" disabled={!canCommit} onClick={() => void commit()}>
-                {committing ? 'Committing...' : 'Commit'}
+                {committing ? (
+                  <>
+                    Committing <span className="spinner" aria-hidden="true" />
+                  </>
+                ) : (
+                  'Commit'
+                )}
               </button>
             </div>
           )}
