@@ -43,13 +43,15 @@ export class ClaudeAdapter implements AgentAdapter {
     try {
       const problem = await this.deps.checkDocker()
       if (problem) throw new Error(problem)
-      const apiKey = await this.deps.getApiKey()
-      if (!apiKey) throw new Error('No Anthropic API key is saved. Add one to start a session.')
+      const credential = await this.deps.getApiKey()
+      if (!credential) {
+        throw new Error('No API key or token is saved. Add one to start a session.')
+      }
       const container = await this.deps.startSandbox(cwd)
       this.container = container
       this.stopRequested = false
       this.watch(container)
-      this.write({ type: 'init', apiKey, cwd })
+      this.write({ type: 'init', credential, cwd })
       this.write({ type: 'prompt', text: prompt })
     } finally {
       this.starting = false

@@ -27,8 +27,11 @@ export interface AgentAdapter {
 
 /** Messages the main process writes to the runner's stdin, one JSON object per line. */
 export type RunnerCommand =
-  /** Always first. The key travels over stdin so it never shows up in `docker inspect`. */
-  | { type: 'init'; apiKey: string; cwd: string }
+  /**
+   * Always first. The credential (an API key or an OAuth token) travels over stdin so it never
+   * shows up in `docker inspect`.
+   */
+  | { type: 'init'; credential: string; cwd: string }
   | { type: 'prompt'; text: string }
   | { type: 'interrupt' }
 
@@ -72,8 +75,12 @@ export function parseCommandLine(line: string): RunnerCommand | null {
   if (value?.type === 'prompt' && typeof value.text === 'string') {
     return { type: 'prompt', text: value.text }
   }
-  if (value?.type === 'init' && typeof value.apiKey === 'string' && typeof value.cwd === 'string') {
-    return { type: 'init', apiKey: value.apiKey, cwd: value.cwd }
+  if (
+    value?.type === 'init' &&
+    typeof value.credential === 'string' &&
+    typeof value.cwd === 'string'
+  ) {
+    return { type: 'init', credential: value.credential, cwd: value.cwd }
   }
   return null
 }

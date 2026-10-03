@@ -40,6 +40,14 @@ describe('saveApiKey', () => {
     expect(s.set).toHaveBeenCalledWith('sk-1')
   })
 
+  it('saves an OAuth token without calling the API', async () => {
+    const s = store()
+    const fetchStatus = respond(401)
+    await saveApiKey(s, 'sk-ant-oat01-abc', fetchStatus)
+    expect(fetchStatus).not.toHaveBeenCalled()
+    expect(s.set).toHaveBeenCalledWith('sk-ant-oat01-abc')
+  })
+
   it('does not save a rejected key', async () => {
     const s = store()
     await expect(saveApiKey(s, 'bad', respond(401))).rejects.toThrow('rejected')

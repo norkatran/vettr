@@ -1,3 +1,4 @@
+import { credentialKind } from '@shared/credential'
 import type { ApiKeyStore } from './apiKey'
 
 export type FetchStatus = (
@@ -25,8 +26,9 @@ export async function checkApiKey(key: string, fetchStatus: FetchStatus): Promis
 }
 
 /**
- * Validate and save a key. Checking first matters: the agent treats a bad key as retryable and
- * keeps retrying for minutes, which looks like a hang, so the user hears about it up front.
+ * Validate and save an API key or OAuth token. Checking first matters: the agent treats a bad key
+ * as retryable and keeps retrying for minutes, which looks like a hang, so the user hears about
+ * it up front. OAuth tokens are saved unchecked: the models endpoint is not known to accept them.
  */
 export async function saveApiKey(
   store: ApiKeyStore,
@@ -35,7 +37,9 @@ export async function saveApiKey(
 ): Promise<void> {
   const trimmed = key.trim()
   if (!trimmed) throw new Error('The API key is empty')
-  const problem = await checkApiKey(trimmed, fetchStatus)
-  if (problem) throw new Error(problem)
+  if (credentialKind(trimmed) === 'apiKey') {
+    const problem = await checkApiKey(trimmed, fetchStatus)
+    if (problem) throw new Error(problem)
+  }
   await store.set(trimmed)
 }

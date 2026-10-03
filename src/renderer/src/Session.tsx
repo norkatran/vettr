@@ -78,14 +78,14 @@ function ApiKeyForm({
         })
       }}
     >
-      <label htmlFor="api-key">Anthropic API key</label>
+      <label htmlFor="api-key">Anthropic API key or Claude OAuth token</label>
       <div className="key-row">
         <input
           id="api-key"
           type="password"
           autoComplete="off"
           spellCheck={false}
-          placeholder="sk-ant-..."
+          placeholder="sk-ant-api03-... or sk-ant-oat01-..."
           value={key}
           onChange={(e) => setKey(e.target.value)}
         />
@@ -99,7 +99,8 @@ function ApiKeyForm({
         )}
       </div>
       <p className="hint">
-        Stored encrypted on this computer and sent to the sandbox when a session starts.
+        Stored encrypted on this computer and sent to the sandbox when a session starts. Run{' '}
+        <code>claude setup-token</code> to get an OAuth token.
       </p>
       {error && <p className="error-text">{error}</p>}
     </form>
@@ -224,7 +225,7 @@ export function Session({ project, session }: SessionProps): React.JSX.Element {
       )}
       {project && hasKey && !editingKey && (
         <button type="button" className="link" onClick={() => setEditingKey(true)}>
-          Change API key
+          Change API key or token
         </button>
       )}
     </main>

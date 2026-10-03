@@ -50,7 +50,7 @@ describe('ClaudeAdapter.start', () => {
     const { adapter, container } = setup()
     await adapter.start('build it', '/proj')
     expect(container.commands()).toEqual([
-      { type: 'init', apiKey: 'sk-key', cwd: '/proj' },
+      { type: 'init', credential: 'sk-key', cwd: '/proj' },
       { type: 'prompt', text: 'build it' }
     ])
   })
@@ -62,9 +62,9 @@ describe('ClaudeAdapter.start', () => {
     expect(startSandbox).not.toHaveBeenCalled()
   })
 
-  it('fails when no API key is saved', async () => {
+  it('fails when no credential is saved', async () => {
     const { adapter } = setup({ getApiKey: async () => null })
-    await expect(adapter.start('p', '/proj')).rejects.toThrow('No Anthropic API key')
+    await expect(adapter.start('p', '/proj')).rejects.toThrow('No API key or token')
   })
 
   it('rejects a second start while a session is running', async () => {

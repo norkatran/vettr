@@ -46,7 +46,7 @@ describe('parseEventLine', () => {
 describe('parseCommandLine', () => {
   it('accepts well-formed commands', () => {
     for (const command of [
-      { type: 'init', apiKey: 'k', cwd: '/p' },
+      { type: 'init', credential: 'k', cwd: '/p' },
       { type: 'prompt', text: 'hi' },
       { type: 'interrupt' }
     ] as const) {
@@ -64,7 +64,7 @@ describe('parseCommandLine', () => {
       'null',
       '{"type":"bogus"}',
       '{"type":"prompt"}',
-      '{"type":"init","apiKey":"k"}',
+      '{"type":"init","credential":"k"}',
       '{"type":"init","cwd":"/p"}'
     ]) {
       expect(parseCommandLine(line)).toBeNull()

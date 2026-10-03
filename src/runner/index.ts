@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { type AgentEvent, encodeLine, LineBuffer, parseCommandLine } from '../shared/agent'
+import { credentialEnv } from '../shared/credential'
 import { Translator } from './translate'
 
 // Runs inside the sandbox container. Reads commands from stdin and writes events to stdout,
@@ -52,7 +53,7 @@ class PromptQueue implements AsyncIterable<SDKUserMessage> {
 const prompts = new PromptQueue()
 let session: ReturnType<typeof query> | null = null
 
-async function pump(cwd: string, apiKey: string) {
+async function pump(cwd: string, credential: string) {
   const translator = new Translator()
   session = query({
     prompt: prompts,
@@ -65,7 +66,7 @@ async function pump(cwd: string, apiKey: string) {
       settingSources: ['project'],
       env: {
         ...process.env,
-        ANTHROPIC_API_KEY: apiKey,
+        ...credentialEnv(credential),
         // Our own temp dir: Claude Code refuses /tmp/claude-<uid> when it is root-owned, which
         // happens if the project's host path (mounted at the same path) runs through /tmp
         CLAUDE_CODE_TMPDIR: mkdtempSync(join(tmpdir(), 'agentide-'))
@@ -100,7 +101,7 @@ process.stdin.on('data', (chunk: string) => {
     if (!command) {
       process.stderr.write(`ignoring malformed command: ${line}\n`)
     } else if (command.type === 'init') {
-      if (!session) void pump(command.cwd, command.apiKey)
+      if (!session) void pump(command.cwd, command.credential)
     } else if (!session) {
       emit({ type: 'error', message: 'Received a command before init' })
     } else if (command.type === 'prompt') {
