@@ -66,7 +66,7 @@ Derived from the build order in [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md). 
 
 ### 3. Agent session
 
-- [ ] Define the agent adapter interface (`start`, `send`, `interrupt`, event stream; keep `respondToApproval` in the interface for later)
+- [x] Define the agent adapter interface (`start`, `send`, `interrupt`, event stream; keep `respondToApproval` in the interface for later), plus the JSON-lines protocol shared with the runner (`src/shared/agent.ts`)
 - [ ] Build the sandbox image (Node, Claude Agent SDK, runner script that speaks JSON lines over stdio)
 - [ ] Start and stop the container from the main process: bind-mount the project, host uid/gid, send the API key to the runner over stdin, check Docker is available and report clearly if not
 - [ ] Implement the first adapter in the main process, behind the interface, driving the in-container runner

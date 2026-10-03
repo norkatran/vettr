@@ -76,6 +76,9 @@ The UI should depend only on a small interface, roughly:
 - `interrupt()` stops the current turn
 - An event stream covering: assistant text, tool call started/finished, file edited, turn finished, error (and approval requested, once approvals are supported)
 - `respondToApproval(id, allow)` is kept in the interface for later; the MVP does not use it as the sandbox grants full permissions
+- `stop()` ends the session and releases the container
+
+Decided: the interface and events live in `src/shared/agent.ts`. Events are `text`, `tool-started`, `tool-finished`, `file-edited`, `turn-finished`, `error` and `exited`. The runner protocol is one JSON object per line on stdio: the main process sends `init` (API key and cwd, always first), `prompt` and `interrupt`; the runner replies with events. `LineBuffer` reassembles lines from stream chunks and `parseEventLine` drops anything malformed.
 
 ## 5. Hard problems and how to approach them
 
