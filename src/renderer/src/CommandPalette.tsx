@@ -10,14 +10,21 @@ export interface PaletteItem {
 
 /** The prompts a command can show. Both resolve to null when the user dismisses the palette. */
 export interface PaletteApi {
-  pick(placeholder: string, items: PaletteItem[]): Promise<string | null>
+  /** `wide` gives long labels (such as session titles) more room, truncating only at the edge. */
+  pick(
+    placeholder: string,
+    items: PaletteItem[],
+    options?: { wide?: boolean }
+  ): Promise<string | null>
   input(placeholder: string): Promise<string | null>
 }
 
-type Prompt = { key: number; placeholder: string; resolve: (value: string | null) => void } & (
-  | { kind: 'pick'; items: PaletteItem[] }
-  | { kind: 'input' }
-)
+type Prompt = {
+  key: number
+  placeholder: string
+  wide?: boolean
+  resolve: (value: string | null) => void
+} & ({ kind: 'pick'; items: PaletteItem[] } | { kind: 'input' })
 
 let nextKey = 1
 
@@ -34,8 +41,10 @@ export function usePalette(): { api: PaletteApi; element: React.JSX.Element | nu
   }, [])
 
   const api: PaletteApi = {
-    pick: (placeholder, items) =>
-      new Promise((resolve) => show({ key: nextKey++, kind: 'pick', placeholder, items, resolve })),
+    pick: (placeholder, items, options) =>
+      new Promise((resolve) =>
+        show({ key: nextKey++, kind: 'pick', placeholder, items, wide: options?.wide, resolve })
+      ),
     input: (placeholder) =>
       new Promise((resolve) => show({ key: nextKey++, kind: 'input', placeholder, resolve }))
   }
@@ -88,7 +97,7 @@ function PalettePrompt({
     // biome-ignore lint/a11y/noStaticElementInteractions: the backdrop only dismisses on click
     <div className="palette-backdrop" onMouseDown={() => onFinish(null)}>
       <div
-        className="palette"
+        className={prompt.wide ? 'palette palette-wide' : 'palette'}
         role="dialog"
         aria-label={prompt.placeholder}
         onMouseDown={(e) => e.stopPropagation()}
@@ -117,7 +126,7 @@ function PalettePrompt({
                   onMouseMove={() => setIndex(i)}
                   onClick={() => onFinish(item.id)}
                 >
-                  <span>{item.label}</span>
+                  <span className="palette-label">{item.label}</span>
                   {item.detail && <span className="muted">{item.detail}</span>}
                 </button>
               </li>

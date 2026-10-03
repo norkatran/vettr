@@ -259,3 +259,16 @@ describe('attempt', () => {
     ).toBe('plain')
   })
 })
+
+describe('ClaudeAdapter.start resume', () => {
+  it('passes the session to resume in init', async () => {
+    const { adapter, container } = setup()
+    await adapter.start('go on', '/proj', 'sess-1')
+    expect(container.commands()[0]).toEqual({
+      type: 'init',
+      credential: 'sk-key',
+      cwd: '/proj',
+      resume: 'sess-1'
+    })
+  })
+})

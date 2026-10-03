@@ -131,3 +131,23 @@ describe('Translator', () => {
     expect(t.translate({ type: 'system', subtype: 'init' })).toEqual([])
   })
 })
+
+describe('Translator session id', () => {
+  it('reports the session id once, before the message events', () => {
+    const translator = new Translator()
+    const message = { ...assistant({ type: 'text', text: 'hi' }), session_id: 's1' }
+    expect(translator.translate(message)).toEqual([
+      { type: 'session-started', sessionId: 's1' },
+      { type: 'text', text: 'hi' }
+    ])
+    expect(translator.translate(message)).toEqual([{ type: 'text', text: 'hi' }])
+  })
+
+  it('reports a new id if it changes', () => {
+    const translator = new Translator()
+    translator.translate({ type: 'system', session_id: 's1' })
+    expect(translator.translate({ type: 'system', session_id: 's2' })).toEqual([
+      { type: 'session-started', sessionId: 's2' }
+    ])
+  })
+})

@@ -995,6 +995,15 @@ button.link:hover:not(:disabled) {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
   overflow: hidden;
 }
+.palette-wide {
+  width: min(1100px, 95vw);
+}
+.palette-label {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .palette-input {
   width: 100%;
   padding: 10px 12px;
@@ -1011,6 +1020,9 @@ button.link:hover:not(:disabled) {
   padding: 4px 0;
   list-style: none;
   overflow-y: auto;
+}
+.palette-wide .palette-list {
+  max-height: 60vh;
 }
 .palette-list button {
   display: flex;
@@ -1037,4 +1049,35 @@ button.link:hover:not(:disabled) {
 .palette-empty {
   padding: 5px 12px;
   color: var(--text-muted);
+}
+.session-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  overflow-y: auto;
+}
+.session-item {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-item:hover {
+  background: rgba(127, 127, 127, 0.15);
+}
+.session-list li {
+  padding: 4px 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

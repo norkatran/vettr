@@ -2,6 +2,8 @@ import type { AgentEvent } from './agent'
 import type { FileChange, RepoChanges } from './diff'
 import type { Branch, GitAction } from './gitActions'
 import type { RepoStatus } from './repoStatus'
+import type { SessionState } from './session'
+import type { SessionInfo } from './sessions'
 import type { Settings } from './settings'
 
 /** Typed IPC contract shared by main, preload and renderer. */
@@ -43,12 +45,16 @@ export interface AgentideApi {
    * Start a session in the current project with a first prompt. Resolves to null on success or
    * to a message for the user (Docker missing, no API key, ...).
    */
-  agentStart(prompt: string): Promise<string | null>
+  agentStart(prompt: string, resume?: string): Promise<string | null>
   /** Send a follow-up in the running session; resolves to null or an error message. */
   agentSend(message: string): Promise<string | null>
   agentInterrupt(): Promise<void>
   /** End the session and stop its container. */
   agentStop(): Promise<void>
+  /** The open project's stored sessions, newest first (empty when none or no project). */
+  listSessions(): Promise<SessionInfo[]>
+  /** A stored session of the open project rebuilt as Session view state, or null if unreadable. */
+  loadSession(id: string): Promise<SessionState | null>
   /** Subscribe to events from the running session; returns an unsubscribe function. */
   onAgentEvent(callback: (event: AgentEvent) => void): () => void
   /** Whether an Anthropic API key is saved. The key itself never reaches the renderer. */
@@ -83,6 +89,8 @@ export const IpcChannel = {
   agentInterrupt: 'agent:interrupt',
   agentStop: 'agent:stop',
   agentEvent: 'agent:event',
+  listSessions: 'agent:sessions',
+  loadSession: 'agent:session',
   hasApiKey: 'apikey:status',
   setApiKey: 'apikey:set',
   openInEditor: 'editor:open',

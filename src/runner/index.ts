@@ -53,12 +53,13 @@ class PromptQueue implements AsyncIterable<SDKUserMessage> {
 const prompts = new PromptQueue()
 let session: ReturnType<typeof query> | null = null
 
-async function pump(cwd: string, credential: string) {
+async function pump(cwd: string, credential: string, resume?: string) {
   const translator = new Translator()
   session = query({
     prompt: prompts,
     options: {
       cwd,
+      ...(resume ? { resume } : {}),
       // The container is the safety boundary, so the agent gets full permissions
       permissionMode: 'bypassPermissions',
       allowDangerouslySkipPermissions: true,
@@ -101,7 +102,7 @@ process.stdin.on('data', (chunk: string) => {
     if (!command) {
       process.stderr.write(`ignoring malformed command: ${line}\n`)
     } else if (command.type === 'init') {
-      if (!session) void pump(command.cwd, command.credential)
+      if (!session) void pump(command.cwd, command.credential, command.resume)
     } else if (!session) {
       emit({ type: 'error', message: 'Received a command before init' })
     } else if (command.type === 'prompt') {

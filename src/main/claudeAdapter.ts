@@ -36,7 +36,7 @@ export class ClaudeAdapter implements AgentAdapter {
     return () => this.listeners.delete(listener)
   }
 
-  async start(prompt: string, cwd: string): Promise<void> {
+  async start(prompt: string, cwd: string, resume?: string): Promise<void> {
     // Claim the slot before the first await so two concurrent starts cannot both proceed
     if (this.container || this.starting) throw new Error('A session is already running')
     this.starting = true
@@ -51,7 +51,7 @@ export class ClaudeAdapter implements AgentAdapter {
       this.container = container
       this.stopRequested = false
       this.watch(container)
-      this.write({ type: 'init', credential, cwd })
+      this.write({ type: 'init', credential, cwd, ...(resume ? { resume } : {}) })
       this.write({ type: 'prompt', text: prompt })
     } finally {
       this.starting = false

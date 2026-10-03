@@ -1,6 +1,7 @@
 import { execFile, spawn } from 'node:child_process'
 import { join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
+import { getSessionMessages, listSessions as sdkListSessions } from '@anthropic-ai/claude-agent-sdk'
 import { buildEditorCommand } from '@shared/editor'
 import type { GitAction } from '@shared/gitActions'
 import { IpcChannel } from '@shared/ipc'
@@ -34,7 +35,9 @@ import {
 } from './git'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
 import { checkDocker, startSandbox, stopSandbox } from './sandbox'
+import { listProjectSessions, loadSession } from './sessions'
 import { getSettings, loadSettings, updateSettings } from './settingsStore'
+import { transcriptsDir } from './transcripts'
 import { watchTree } from './watcher'
 
 const apiKeys = createApiKeyStore(join(app.getPath('userData'), 'apikey'), {
@@ -48,6 +51,7 @@ const agent = new ClaudeAdapter({
   startSandbox: (project) =>
     startSandbox({
       project,
+      transcriptsDir: transcriptsDir(app.getPath('userData'), project),
       spawn,
       // Linux first, so these exist; the container runs as the host user
       uid: process.getuid?.() as number,
@@ -192,17 +196,36 @@ void app.whenReady().then(async () => {
   ipcMain.handle(IpcChannel.runGitAction, (_event, project: string, action: GitAction) =>
     runGitAction(project, action)
   )
-  ipcMain.handle(IpcChannel.agentStart, (_event, prompt: string) =>
+  ipcMain.handle(IpcChannel.agentStart, (_event, prompt: string, resume?: string) =>
     attempt(async () => {
       const project = getProjectState().current
       if (!project) throw new Error('Open a project first')
-      await agent.start(prompt, project)
+      await agent.start(prompt, project, resume)
     })
   )
   ipcMain.handle(IpcChannel.agentSend, (_event, message: string) =>
     attempt(() => agent.send(message))
   )
   ipcMain.handle(IpcChannel.agentInterrupt, () => attempt(() => agent.interrupt()).then(() => {}))
+  ipcMain.handle(IpcChannel.listSessions, async () => {
+    const project = getProjectState().current
+    if (!project) return []
+    return listProjectSessions(
+      { listSessions: sdkListSessions, env: process.env },
+      transcriptsDir(app.getPath('userData'), project),
+      project
+    )
+  })
+  ipcMain.handle(IpcChannel.loadSession, async (_event, id: string) => {
+    const project = getProjectState().current
+    if (!project) return null
+    return loadSession(
+      { getSessionMessages, env: process.env },
+      transcriptsDir(app.getPath('userData'), project),
+      project,
+      id
+    )
+  })
   ipcMain.handle(IpcChannel.agentStop, () => agent.stop())
   ipcMain.handle(
     IpcChannel.openInEditor,

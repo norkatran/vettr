@@ -13,6 +13,7 @@ import { StatusBar } from './StatusBar'
 import { useAgentSession } from './useAgentSession'
 import { useChanges } from './useChanges'
 import { useReviewComments } from './useReviewComments'
+import { useSessionList } from './useSessionList'
 
 const THEME_KEY = 'agentide.theme'
 const darkQuery = '(prefers-color-scheme: dark)'
@@ -65,6 +66,7 @@ export function App(): React.JSX.Element {
   const changes = useChanges(project)
   const count = changes.changes ? changedFileCount(changes.changes) : 0
   const session = useAgentSession(project)
+  const sessions = useSessionList(project, `${session.state.status}:${session.state.sessionId}`)
   const review = useReviewComments(project, changes.changes)
   const pending = pendingComments(review.comments)
   const status = session.state.status
@@ -86,8 +88,9 @@ export function App(): React.JSX.Element {
     setView('session')
     // With no live session, the review becomes the prompt that starts a new one
     if (needsNewSession) {
-      if (status === 'ended') await session.newSession()
-      session.start(message)
+      if (status === 'ended' && !session.state.sessionId) await session.newSession()
+      if (status === 'ended') session.send(message)
+      else session.start(message)
     } else session.send(message)
   }
 
@@ -105,6 +108,11 @@ export function App(): React.JSX.Element {
     setView('session')
   }
 
+  const openSession = (id: string): void => {
+    void session.openSession(id)
+    setView('session')
+  }
+
   const stagedCount = changes.changes?.staged.length ?? 0
   const openPalette = (): void => {
     const focusCommit = (): void => {
@@ -118,6 +126,14 @@ export function App(): React.JSX.Element {
       notify,
       stagedCount: () => stagedCount,
       focusCommit,
+      newSession: () => {
+        newSession()
+        setExpanded(true)
+      },
+      openSession: (id) => {
+        openSession(id)
+        setExpanded(true)
+      },
       showView: (next) => {
         setView(next)
         setExpanded(true)
@@ -187,8 +203,10 @@ export function App(): React.JSX.Element {
           expanded={expanded}
           onSelect={select}
           onNewSession={newSession}
+          onOpenSession={openSession}
           changes={changes}
           sessionStarted={session.state.status !== 'idle'}
+          sessions={sessions}
         />
         {view === 'settings' ? (
           <SettingsView />

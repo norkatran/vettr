@@ -108,6 +108,7 @@ Global git commands in a VS Code-style palette (see brief section 6.2).
 - [x] Changes: Commit (opens the Changes view and focuses the message input), Stage All, Unstage All, Discard All Changes (confirmed)
 - [x] Stash, Pop Stash, Merge Branch into Current, Rebase Current Branch onto (a conflicting merge or rebase is aborted and reported)
 - [x] Jump To: Session, Changes, Settings (work without an open project)
+- [x] Session: List Sessions opens a second, wide palette to search or scroll the project's stored sessions in the sidebar format (`[timestamp] title`), with room for the full title
 
 ### 5. Line comments
 
@@ -133,12 +134,23 @@ Global git commands in a VS Code-style palette (see brief section 6.2).
 - [ ] Out-of-scope guardrails respected (no editor, language server, debugger, extensions or primary file tree)
 - [ ] Build and smoke test on the first target OS
 
+### 4c. Session persistence and resume
+
+Sessions survive restarts and can be resumed (see brief section 5.8).
+
+- [x] Per-project transcript store on the host, mounted into the container as the Claude config dir (`src/main/transcripts.ts`, `src/shared/sandbox.ts`)
+- [x] Runner reports the SDK session ID (`session-started` event, kept in the session state) and accepts `resume` in `init` (`start(prompt, cwd, resume?)` on the adapter; not yet reachable from the UI or IPC)
+- [x] List a project's sessions (`listSessions`) over IPC (`listSessions()` on `window.agentide`; `src/main/sessions.ts`)
+- [x] Replay a stored session (`getSessionMessages`) into Session view state (`loadSession(id)` over IPC; `src/main/replay.ts`; tested against a transcript file read by the real SDK; not yet reachable from the UI)
+- [x] Session list in the Session side panel under "New session" (`[timestamp] title`, truncated with an ellipsis; read-only for now, reloads when the live session starts, finishes or changes)
+- [x] Open a stored session by clicking it in the list or picking it from the "Session: List Sessions" palette command: it stops any live agent, replaces the current session and rewrites the chat display from the replayed transcript (ignored while the agent is working). Sending a follow-up to it resumes it (see below)
+- [x] Resuming a stored session, or one whose agent ended or crashed, by sending a message: the main process restarts the sandbox with the SDK `resume` option (`agentStart(prompt, resume?)` over IPC) and the transcript gets a "Session resumed" notice
+
 ### Later
 
 - [ ] Interactive git authentication for push (passphrase and credential prompts)
 - [ ] Hunk-level staging
 - [ ] Checkpoints and undo per agent turn (the session model can take them additively: see brief section 5.4)
-- [ ] Resume sessions and recover transcripts via the SDK `resume` option: persist a per-project transcript store on the host and mount it in the container (the container is `--rm` today, so transcripts are lost), record the session ID, add `resume` to `init` (brief section 5.8)
 - [ ] Approval prompts and a user-extendable allowlist for shell commands
 - [ ] Restricted network access for the sandbox container
 - [ ] Host-side API proxy that injects the key, so the container only gets a placeholder token and `ANTHROPIC_BASE_URL` (verify the SDK honours the base URL override; bind the proxy to the Docker bridge only)

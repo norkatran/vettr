@@ -1,7 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { lstat } from 'node:fs/promises'
+import { lstat, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { buildRunArgs, SANDBOX_IMAGE } from '@shared/sandbox'
@@ -52,6 +52,8 @@ export async function readOnlyGitPaths(project: string): Promise<string[]> {
 
 export interface StartOptions {
   project: string
+  /** Host dir for the container's Claude config (see `transcriptsDir`); created if missing. */
+  transcriptsDir: string
   spawn: Spawn
   uid: number
   gid: number
@@ -63,14 +65,18 @@ export interface StartOptions {
  */
 export async function startSandbox({
   project,
+  transcriptsDir,
   spawn,
   uid,
   gid
 }: StartOptions): Promise<ChildProcessWithoutNullStreams> {
+  // Made by the host user before docker runs, so the container user (same uid) can write to it
+  await mkdir(transcriptsDir, { recursive: true })
   const args = buildRunArgs({
     name: `agentide-${randomUUID().slice(0, 8)}`,
     project,
     readOnlyPaths: await readOnlyGitPaths(project),
+    transcriptsDir,
     uid,
     gid
   })

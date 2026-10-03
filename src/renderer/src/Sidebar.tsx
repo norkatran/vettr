@@ -1,4 +1,5 @@
 import { changedFileCount, type FileChange } from '@shared/diff'
+import { type SessionInfo, sessionLabel } from '@shared/sessions'
 import { useState } from 'react'
 import { FileTitle, fileAnchor, filePaths } from './Changes'
 import { useNotify } from './Notifications'
@@ -12,9 +13,13 @@ interface SidebarProps {
   expanded: boolean
   onSelect: (view: View) => void
   onNewSession: () => void
+  /** Replace the current session with the stored one with this ID. */
+  onOpenSession: (id: string) => void
   changes: ChangesState
   /** A session has started, so the empty-state hint no longer applies. */
   sessionStarted: boolean
+  /** The project's stored sessions, newest first. */
+  sessions: SessionInfo[]
 }
 
 const ITEMS: { view: View; label: string; icon: React.JSX.Element }[] = [
@@ -60,8 +65,10 @@ export function Sidebar({
   expanded,
   onSelect,
   onNewSession,
+  onOpenSession,
   changes,
-  sessionStarted
+  sessionStarted,
+  sessions
 }: SidebarProps): React.JSX.Element {
   const notify = useNotify()
   const [message, setMessage] = useState('')
@@ -190,6 +197,22 @@ export function Sidebar({
             <button type="button" className="new-session" onClick={onNewSession}>
               New session
             </button>
+          )}
+          {view === 'session' && sessions.length > 0 && (
+            <ul className="session-list" aria-label="Stored sessions">
+              {sessions.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    className="session-item"
+                    title={sessionLabel(s)}
+                    onClick={() => onOpenSession(s.id)}
+                  >
+                    {sessionLabel(s)}
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </aside>
       )}

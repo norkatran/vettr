@@ -156,7 +156,7 @@ function Transcript({ session, project }: { session: AgentSession; project: stri
         {state.status === 'running' && <div className="working">Working…</div>}
         <div ref={end} />
       </div>
-      {state.status === 'ended' ? (
+      {state.status === 'ended' && !state.sessionId ? (
         <div className="ended">
           <span>The session has ended.</span>
           <button type="button" onClick={() => void session.newSession()}>
@@ -176,7 +176,11 @@ function Transcript({ session, project }: { session: AgentSession; project: stri
             </div>
           ) : (
             <Composer
-              placeholder="Send a follow-up"
+              placeholder={
+                state.status === 'ended'
+                  ? 'The agent exited. Send a message to resume this session'
+                  : 'Send a follow-up'
+              }
               hint="Ctrl+Enter to send"
               submitLabel="Send"
               onSubmit={session.send}

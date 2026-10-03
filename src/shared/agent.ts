@@ -1,5 +1,7 @@
 /** Events an agent session emits; the UI depends only on these, never on a specific agent. */
 export type AgentEvent =
+  /** The SDK session ID, reported once per session; it is what `resume` takes later. */
+  | { type: 'session-started'; sessionId: string }
   | { type: 'text'; text: string }
   | { type: 'tool-started'; id: string; name: string; input: unknown }
   | { type: 'tool-finished'; id: string; output: string; isError: boolean }
@@ -11,8 +13,8 @@ export type AgentEvent =
 
 /** Adapter between the app and a concrete agent (the first one wraps the Claude Agent SDK). */
 export interface AgentAdapter {
-  /** Begin a session in `cwd` with the first prompt. */
-  start(prompt: string, cwd: string): Promise<void>
+  /** Begin a session in `cwd` with the first prompt, optionally resuming SDK session `resume`. */
+  start(prompt: string, cwd: string, resume?: string): Promise<void>
   /** Send a follow-up in the same session, including batched review comments. */
   send(message: string): Promise<void>
   /** Stop the current turn without ending the session. */
@@ -31,11 +33,12 @@ export type RunnerCommand =
    * Always first. The credential (an API key or an OAuth token) travels over stdin so it never
    * shows up in `docker inspect`.
    */
-  | { type: 'init'; credential: string; cwd: string }
+  | { type: 'init'; credential: string; cwd: string; resume?: string }
   | { type: 'prompt'; text: string }
   | { type: 'interrupt' }
 
 const EVENT_TYPES = new Set([
+  'session-started',
   'text',
   'tool-started',
   'tool-finished',
@@ -80,7 +83,9 @@ export function parseCommandLine(line: string): RunnerCommand | null {
     typeof value.credential === 'string' &&
     typeof value.cwd === 'string'
   ) {
-    return { type: 'init', credential: value.credential, cwd: value.cwd }
+    const init: RunnerCommand = { type: 'init', credential: value.credential, cwd: value.cwd }
+    if (typeof value.resume === 'string' && value.resume) init.resume = value.resume
+    return init
   }
   return null
 }

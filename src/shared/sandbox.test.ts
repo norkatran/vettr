@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { buildRunArgs, SANDBOX_IMAGE } from './sandbox'
 
-const base = { name: 'c1', project: '/work/p', readOnlyPaths: [], uid: 1000, gid: 1001 }
+const base = {
+  name: 'c1',
+  project: '/work/p',
+  readOnlyPaths: [],
+  transcriptsDir: '/data/t',
+  uid: 1000,
+  gid: 1001
+}
 
 describe('buildRunArgs', () => {
   it('runs as the host user with the project mounted at the same path', () => {
@@ -12,6 +19,12 @@ describe('buildRunArgs', () => {
     expect(args.join(' ')).toContain('--user 1000:1001')
     expect(args.join(' ')).toContain('--workdir /work/p')
     expect(args.join(' ')).toContain('-v /work/p:/work/p')
+  })
+
+  it('mounts the transcripts dir as the Claude config dir', () => {
+    const args = buildRunArgs(base).join(' ')
+    expect(args).toContain('-v /data/t:/agentide-config')
+    expect(args).toContain('-e CLAUDE_CONFIG_DIR=/agentide-config')
   })
 
   it('drops capabilities and ends with the image so the runner gets no extra args', () => {
@@ -29,6 +42,7 @@ describe('buildRunArgs', () => {
     })
     const mounts = args.filter((_, i) => args[i - 1] === '-v')
     expect(mounts).toEqual([
+      '/data/t:/agentide-config',
       '/work/p:/work/p',
       '/work/p/.git:/work/p/.git:ro',
       '/main/.git/worktrees/x:/main/.git/worktrees/x:ro'

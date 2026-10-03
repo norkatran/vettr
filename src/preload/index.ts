@@ -26,10 +26,12 @@ const api: AgentideApi = {
   publish: (project, remote) => ipcRenderer.invoke(IpcChannel.publish, project, remote),
   listBranches: (project) => ipcRenderer.invoke(IpcChannel.listBranches, project),
   runGitAction: (project, action) => ipcRenderer.invoke(IpcChannel.runGitAction, project, action),
-  agentStart: (prompt) => ipcRenderer.invoke(IpcChannel.agentStart, prompt),
+  agentStart: (prompt, resume) => ipcRenderer.invoke(IpcChannel.agentStart, prompt, resume),
   agentSend: (message) => ipcRenderer.invoke(IpcChannel.agentSend, message),
   agentInterrupt: () => ipcRenderer.invoke(IpcChannel.agentInterrupt),
   agentStop: () => ipcRenderer.invoke(IpcChannel.agentStop),
+  listSessions: () => ipcRenderer.invoke(IpcChannel.listSessions),
+  loadSession: (id: string) => ipcRenderer.invoke(IpcChannel.loadSession, id),
   onAgentEvent: (callback) => {
     const listener = (_event: IpcRendererEvent, event: AgentEvent): void => callback(event)
     ipcRenderer.on(IpcChannel.agentEvent, listener)

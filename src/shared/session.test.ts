@@ -124,6 +124,19 @@ describe('sessionReducer', () => {
   })
 })
 
+describe('resuming', () => {
+  it('adds a notice and the message, and keeps the session ID', () => {
+    const ended = { ...initialSession, status: 'ended' as const, sessionId: 's1' }
+    const state = sessionReducer(ended, { type: 'resumed', text: 'go on' })
+    expect(state.status).toBe('running')
+    expect(state.sessionId).toBe('s1')
+    expect(state.items).toEqual([
+      { kind: 'notice', text: 'Session resumed' },
+      { kind: 'user', text: 'go on' }
+    ])
+  })
+})
+
 describe('describeTool', () => {
   it('summarises by the most telling input field', () => {
     expect(describeTool({ command: 'npm test', description: 'run' })).toBe('npm test')
@@ -159,5 +172,22 @@ describe('relativePath', () => {
   it('leaves paths outside the project, including look-alike prefixes', () => {
     expect(relativePath('/p', '/other/a.ts')).toBe('/other/a.ts')
     expect(relativePath('/p', '/p2/a.ts')).toBe('/p2/a.ts')
+  })
+})
+
+describe('session-started', () => {
+  it('stores the SDK session id', () => {
+    const state = sessionReducer(initialSession, {
+      type: 'event',
+      event: { type: 'session-started', sessionId: 's1' }
+    })
+    expect(state.sessionId).toBe('s1')
+  })
+})
+
+describe('load', () => {
+  it('replaces the whole state', () => {
+    const loaded: SessionState = { ...initialSession, draft: 'restored' }
+    expect(run(initialSession, { type: 'load', state: loaded })).toBe(loaded)
   })
 })

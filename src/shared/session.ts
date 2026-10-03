@@ -26,6 +26,8 @@ export interface SessionState {
   /** The prompt text to put back in the input after a failed start. */
   draft: string
   startError: string | null
+  /** The SDK session ID once the agent reports it; used to resume the session later. */
+  sessionId: string | null
 }
 
 export const initialSession: SessionState = {
@@ -33,16 +35,19 @@ export const initialSession: SessionState = {
   items: [],
   interrupting: false,
   draft: '',
-  startError: null
+  startError: null,
+  sessionId: null
 }
 
 export type SessionAction =
   | { type: 'sent'; text: string }
+  | { type: 'resumed'; text: string }
   | { type: 'start-failed'; message: string; prompt: string }
   | { type: 'send-failed'; message: string }
   | { type: 'interrupt-requested' }
   | { type: 'event'; event: AgentEvent }
   | { type: 'reset' }
+  | { type: 'load'; state: SessionState }
 
 /** Tools still marked running when a turn ends or the agent exits will never report back. */
 function stopRunning(items: TranscriptItem[]): TranscriptItem[] {
@@ -54,6 +59,8 @@ function stopRunning(items: TranscriptItem[]): TranscriptItem[] {
 function applyEvent(state: SessionState, event: AgentEvent): SessionState {
   const { items } = state
   switch (event.type) {
+    case 'session-started':
+      return { ...state, sessionId: event.sessionId }
     case 'text':
       return { ...state, items: [...items, { kind: 'text', text: event.text }] }
     case 'tool-started':
@@ -111,6 +118,18 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
         startError: null,
         items: [...state.items, { kind: 'user', text: action.text }]
       }
+    case 'resumed':
+      return {
+        ...state,
+        status: 'running',
+        draft: '',
+        startError: null,
+        items: [
+          ...state.items,
+          { kind: 'notice', text: 'Session resumed' },
+          { kind: 'user', text: action.text }
+        ]
+      }
     case 'start-failed':
       return { ...initialSession, draft: action.prompt, startError: action.message }
     case 'send-failed':
@@ -125,6 +144,8 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
       return applyEvent(state, action.event)
     case 'reset':
       return initialSession
+    case 'load':
+      return action.state
   }
 }
 

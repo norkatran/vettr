@@ -30,6 +30,7 @@ describe('parseEventLine', () => {
 
   it('accepts every event type', () => {
     for (const type of [
+      'session-started',
       'text',
       'tool-started',
       'tool-finished',
@@ -47,6 +48,7 @@ describe('parseCommandLine', () => {
   it('accepts well-formed commands', () => {
     for (const command of [
       { type: 'init', credential: 'k', cwd: '/p' },
+      { type: 'init', credential: 'k', cwd: '/p', resume: 's1' },
       { type: 'prompt', text: 'hi' },
       { type: 'interrupt' }
     ] as const) {
@@ -88,5 +90,14 @@ describe('LineBuffer', () => {
 
   it('skips blank lines', () => {
     expect(new LineBuffer().push('\n  \na\n')).toEqual(['a'])
+  })
+})
+
+describe('parseCommandLine resume', () => {
+  it('ignores an empty or non-string resume', () => {
+    for (const resume of ['""', '7']) {
+      const line = `{"type":"init","credential":"k","cwd":"/p","resume":${resume}}`
+      expect(parseCommandLine(line)).toEqual({ type: 'init', credential: 'k', cwd: '/p' })
+    }
   })
 })

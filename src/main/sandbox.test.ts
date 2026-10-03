@@ -1,6 +1,6 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -66,15 +66,18 @@ describe('readOnlyGitPaths', () => {
 describe('startSandbox', () => {
   it('spawns docker with the run arguments for the project', async () => {
     git(root, 'init', '-q')
+    const transcriptsDir = join(root, 'data', 'transcripts')
     const child = {} as ChildProcessWithoutNullStreams
     const spawn = vi.fn().mockReturnValue(child)
-    expect(await startSandbox({ project: root, spawn, uid: 1, gid: 2 })).toBe(child)
+    expect(await startSandbox({ project: root, transcriptsDir, spawn, uid: 1, gid: 2 })).toBe(child)
     const [file, args, options] = spawn.mock.calls[0]
     expect(file).toBe('docker')
     expect(options).toEqual({ stdio: 'pipe' })
     expect(args).toContain(`${root}:${root}`)
     expect(args).toContain(`${join(root, '.git')}:${join(root, '.git')}:ro`)
     expect(args).toContain('1:2')
+    expect(args).toContain(`${transcriptsDir}:/agentide-config`)
+    expect(existsSync(transcriptsDir)).toBe(true)
     expect(args[args.indexOf('--name') + 1]).toMatch(/^agentide-[0-9a-f]{8}$/)
   })
 })

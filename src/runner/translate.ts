@@ -8,6 +8,7 @@ export interface SdkMessage {
   result?: string
   errors?: string[]
   message?: unknown
+  session_id?: string
 }
 
 interface Block {
@@ -52,7 +53,19 @@ function blocksOf(message: SdkMessage): Block[] {
 export class Translator {
   private readonly editPaths = new Map<string, string>()
 
+  private sessionId: string | null = null
+
   translate(message: SdkMessage): AgentEvent[] {
+    const events = this.translateMessage(message)
+    // Every SDK message carries the session ID; report it once, ahead of the first events
+    if (message.session_id && message.session_id !== this.sessionId) {
+      this.sessionId = message.session_id
+      events.unshift({ type: 'session-started', sessionId: message.session_id })
+    }
+    return events
+  }
+
+  private translateMessage(message: SdkMessage): AgentEvent[] {
     if (message.type === 'assistant') return this.assistant(message)
     if (message.type === 'user') return this.toolResults(message)
     if (message.type === 'result') return this.result(message)

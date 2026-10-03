@@ -7,8 +7,9 @@ import {
   switchName,
   switchTargets
 } from '@shared/gitActions'
-import type { View } from './Sidebar'
+import { sessionLabel } from '@shared/sessions'
 import type { PaletteApi, PaletteItem } from './CommandPalette'
+import type { View } from './Sidebar'
 
 /** What a command can use. Failures are reported through `notify`, not thrown. */
 export interface CommandContext extends PaletteApi {
@@ -21,6 +22,10 @@ export interface CommandContext extends PaletteApi {
   focusCommit: () => void
   /** Switch to a view, expanding the side panel. */
   showView: (view: View) => void
+  /** Start a fresh agent session and show the Session view. */
+  newSession: () => void
+  /** Replace the current session with a stored one and show the Session view. */
+  openSession: (id: string) => void
 }
 
 /** A global command. Every command is always listed; one that cannot run explains why. */
@@ -116,7 +121,28 @@ const commit: Command['run'] = async (ctx) => {
   ctx.focusCommit()
 }
 
+/** Search the project's stored sessions in a wide palette. Picking one replaces the current session. */
+const listSessions: Command['run'] = async (ctx) => {
+  const sessions = await window.agentide.listSessions()
+  if (sessions.length === 0)
+    return ctx.notify('No sessions', 'This project has no stored sessions.')
+  const id = await ctx.pick(
+    'Search sessions',
+    sessions.map((s) => ({ id: s.id, label: sessionLabel(s) })),
+    { wide: true }
+  )
+  if (id) ctx.openSession(id)
+}
+
 export const commands: Command[] = [
+  {
+    id: 'new-session',
+    category: 'Session',
+    title: 'New Session',
+    needsProject: false,
+    run: async (ctx) => ctx.newSession()
+  },
+  { id: 'list-sessions', category: 'Session', title: 'List Sessions', run: listSessions },
   {
     id: 'jump-session',
     category: 'Jump To',
