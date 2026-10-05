@@ -159,7 +159,7 @@ Linting and formatting use Biome (one tool for both, config in `biome.json`, mat
 
 ### 5.8 Session persistence and resume
 
-Decided: built in steps (see the README to-do list). The Agent SDK supports resuming (`resume: '<sessionId>'`, plus `listSessions` and `getSessionMessages` to read a transcript back). The SDK jsonl is the source of truth; vettr keeps no transcript format of its own.
+Decided: built in steps (see [design 0001](designs/0001-mvp.md)). The Agent SDK supports resuming (`resume: '<sessionId>'`, plus `listSessions` and `getSessionMessages` to read a transcript back). The SDK jsonl is the source of truth; vettr keeps no transcript format of its own.
 
 - **Storage (built):** each project has a folder `<userData>/projects/<name>-<hash of the project path>/transcripts` (`src/main/transcripts.ts`). Moving a project makes it a new one, so its old sessions are orphaned. That folder is mounted into the container at `/vettr-config` and set as `CLAUDE_CONFIG_DIR`, so the SDK writes its transcripts (under `projects/`) to the host and they outlive the `--rm` container. Only that folder is shared, never the host's real `~/.claude`, which would expose host settings and credentials. The main process creates it as the host user before `docker run`, and the container runs as the same uid.
 - **Listing (built):** the main process calls the SDK's `listSessions({ dir: project })` with `CLAUDE_CONFIG_DIR` pointed at the project's transcripts folder (calls are serialised because the SDK reads the variable from the environment) and returns `{ id, title, lastModified }`, newest first, over IPC (`agent:sessions`). The SDK is bundled into the main process by electron-vite.
