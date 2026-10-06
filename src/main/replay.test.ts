@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { getSessionMessages } from '@anthropic-ai/claude-agent-sdk'
+import { formatReview, parseReview } from '@shared/comments'
 import { describe, expect, it } from 'vitest'
 import { replaySession } from './replay'
 import { loadSession } from './sessions'
@@ -11,6 +12,31 @@ const user = (content: unknown) => msg('user', { role: 'user', content })
 const assistant = (content: unknown[]) => msg('assistant', { role: 'assistant', content })
 
 describe('replaySession', () => {
+  it('keeps a sent review as a user message that can be parsed back', () => {
+    const sent = formatReview(
+      [
+        {
+          id: 'c1',
+          file: 'a.ts',
+          staged: false,
+          side: 'new',
+          start: 1,
+          end: 1,
+          snapshot: ['x'],
+          text: 'Why?',
+          round: 1,
+          sent: true,
+          outdated: false
+        }
+      ],
+      1
+    )
+    const state = replaySession([user(sent)])
+    const [item] = state.items
+    expect(item?.kind).toBe('user')
+    expect(parseReview(item?.kind === 'user' ? item.text : '')?.comments[0]?.id).toBe('c1')
+  })
+
   it('rebuilds prompts, text, tools, edits and interrupts', () => {
     const state = replaySession([
       user('fix it'),

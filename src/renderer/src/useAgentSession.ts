@@ -1,8 +1,10 @@
 import { initialSession, type SessionState, sessionReducer } from '@shared/session'
-import { useCallback, useEffect, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 
 export interface AgentSession {
   state: SessionState
+  /** How many stored sessions have been opened; changes when one replaces the transcript. */
+  loads: number
   /** Resolve to null once the agent has taken the prompt, or to an error message. */
   /**
    * Start a session with a prompt. If it fails the prompt is put back in the input, unless
@@ -24,6 +26,7 @@ export interface AgentSession {
  */
 export function useAgentSession(project: string | null): AgentSession {
   const [state, dispatch] = useReducer(sessionReducer, initialSession)
+  const [loads, setLoads] = useState(0)
   const stateRef = useRef(state)
   stateRef.current = state
   // Set while the shown session has no live agent: a stored session or one whose agent exited.
@@ -78,7 +81,8 @@ export function useAgentSession(project: string | null): AgentSession {
     if (!loaded) return
     resumeId.current = loaded.sessionId ?? id
     dispatch({ type: 'load', state: loaded })
+    setLoads((n) => n + 1)
   }, [])
 
-  return { state, start, send, interrupt, newSession, openSession }
+  return { state, loads, start, send, interrupt, newSession, openSession }
 }

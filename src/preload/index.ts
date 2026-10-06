@@ -33,6 +33,9 @@ const api: VettrApi = {
   agentStop: () => ipcRenderer.invoke(IpcChannel.agentStop),
   listSessions: () => ipcRenderer.invoke(IpcChannel.listSessions),
   loadSession: (id: string) => ipcRenderer.invoke(IpcChannel.loadSession, id),
+  getResolvedComments: (project) => ipcRenderer.invoke(IpcChannel.getResolvedComments, project),
+  setCommentResolved: (project, id, resolved) =>
+    ipcRenderer.invoke(IpcChannel.setCommentResolved, project, id, resolved),
   onAgentEvent: (callback) => {
     const listener = (_event: IpcRendererEvent, event: AgentEvent): void => callback(event)
     ipcRenderer.on(IpcChannel.agentEvent, listener)

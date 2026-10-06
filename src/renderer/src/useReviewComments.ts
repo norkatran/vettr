@@ -1,6 +1,6 @@
-import { type ReviewComment, reanchor } from '@shared/comments'
+import { type ReviewComment, reanchor, rehydrate, type SentComment } from '@shared/comments'
 import type { RepoChanges } from '@shared/diff'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type NewComment = Omit<ReviewComment, 'id' | 'round' | 'sent' | 'outdated'>
 
@@ -9,15 +9,21 @@ export interface Review {
   /** The current review round, starting at 1 and advancing each time comments are sent. */
   round: number
   add(comment: NewComment): void
-  edit(id: number, text: string): void
-  remove(id: number): void
+  edit(id: string, text: string): void
+  remove(id: string): void
   /**
    * The working tree recorded when the last review was sent (a git tree id), the baseline for
    * "changes since the last review"; null before the first send.
    */
   baseline: string | null
   /** Mark the given comments as sent, record the round's baseline tree and start the next round. */
-  markSent(ids: number[], baseline: string | null): void
+  markSent(ids: string[], baseline: string | null): void
+  /**
+   * Replace the sent comments with those read from an opened session's transcript, re-anchored to
+   * the current changes, and continue from the round after the last one sent. The baseline of the
+   * old session no longer applies.
+   */
+  restore(sent: SentComment[]): void
 }
 
 /**
@@ -28,13 +34,15 @@ export interface Review {
 export function useReviewComments(project: string | null, changes: RepoChanges | null): Review {
   const [comments, setComments] = useState<ReviewComment[]>([])
   const [round, setRound] = useState(1)
-  const [nextId, setNextId] = useState(1)
   const [baseline, setBaseline] = useState<string | null>(null)
+  const changesRef = useRef(changes)
+  changesRef.current = changes
+  const commentsRef = useRef(comments)
+  commentsRef.current = comments
 
   useEffect(() => {
     setComments([])
     setRound(1)
-    setNextId(1)
     setBaseline(null)
   }, [project])
 
@@ -46,26 +54,32 @@ export function useReviewComments(project: string | null, changes: RepoChanges |
     (comment: NewComment) => {
       setComments((prev) => [
         ...prev,
-        { ...comment, id: nextId, round, sent: false, outdated: false }
+        { ...comment, id: crypto.randomUUID(), round, sent: false, outdated: false }
       ])
-      setNextId((n) => n + 1)
     },
-    [nextId, round]
+    [round]
   )
   const edit = useCallback(
-    (id: number, text: string) =>
+    (id: string, text: string) =>
       setComments((prev) => prev.map((c) => (c.id === id ? { ...c, text } : c))),
     []
   )
   const remove = useCallback(
-    (id: number) => setComments((prev) => prev.filter((c) => c.id !== id)),
+    (id: string) => setComments((prev) => prev.filter((c) => c.id !== id)),
     []
   )
-  const markSent = useCallback((ids: number[], tree: string | null) => {
+  const markSent = useCallback((ids: string[], tree: string | null) => {
     if (tree) setBaseline(tree)
     setComments((prev) => prev.map((c) => (ids.includes(c.id) ? { ...c, sent: true } : c)))
     setRound((r) => r + 1)
   }, [])
 
-  return { comments, round, baseline, add, edit, remove, markSent }
+  const restore = useCallback((sent: SentComment[]) => {
+    const restored = rehydrate(commentsRef.current, sent, changesRef.current)
+    setComments(restored.comments)
+    setRound(restored.round)
+    setBaseline(null)
+  }, [])
+
+  return { comments, round, baseline, add, edit, remove, markSent, restore }
 }

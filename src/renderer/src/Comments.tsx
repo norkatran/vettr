@@ -1,5 +1,7 @@
 import { endsAt, inRange, type ReviewComment, type Side } from '@shared/comments'
+import type { AgentReply } from '@shared/replies'
 import { createContext, useContext, useState } from 'react'
+import { ReplyBubble, ResolvableThread } from './Replies'
 
 /** The lines being selected for a new comment. */
 export interface Draft {
@@ -18,13 +20,15 @@ export interface CommentUi {
   /** Why comments cannot be written or saved right now (the agent is not ready), or null. */
   locked: string | null
   comments: ReviewComment[]
+  /** The agent's replies, by comment id. */
+  replies: Map<string, AgentReply[]>
   draft: Draft | null
   /** A line number was clicked (shift extends the current selection). */
   pick(file: string, staged: boolean, side: Side, no: number, shift: boolean): void
   save(text: string): void
   cancel(): void
-  edit(id: number, text: string): void
-  remove(id: number): void
+  edit(id: string, text: string): void
+  remove(id: string): void
 }
 
 export const CommentContext = createContext<CommentUi | null>(null)
@@ -120,6 +124,24 @@ export function OutdatedComments(): React.JSX.Element | null {
   )
 }
 
+/** A sent comment is a thread the user can resolve; a pending one is just a card. */
+function Thread({
+  comment,
+  summary,
+  children
+}: {
+  comment: ReviewComment
+  summary: string
+  children: React.ReactNode
+}): React.JSX.Element {
+  if (!comment.sent) return <div className="comment">{children}</div>
+  return (
+    <ResolvableThread id={comment.id} className="comment sent" summary={summary}>
+      {children}
+    </ResolvableThread>
+  )
+}
+
 function CommentCard({ comment }: { comment: ReviewComment }): React.JSX.Element {
   const ui = useCommentUi()
   const [editing, setEditing] = useState(false)
@@ -142,7 +164,7 @@ function CommentCard({ comment }: { comment: ReviewComment }): React.JSX.Element
     )
   }
   return (
-    <div className={comment.sent ? 'comment sent' : 'comment'}>
+    <Thread comment={comment} summary={`${comment.file}, ${range}`}>
       <div className="comment-meta">
         <span>
           {comment.side === 'old' ? 'Old' : 'New'} {range}
@@ -170,7 +192,10 @@ function CommentCard({ comment }: { comment: ReviewComment }): React.JSX.Element
         )}
       </div>
       <p>{comment.text}</p>
-    </div>
+      {(ui.replies.get(comment.id) ?? []).map((reply, i) => (
+        <ReplyBubble key={i} reply={reply} />
+      ))}
+    </Thread>
   )
 }
 

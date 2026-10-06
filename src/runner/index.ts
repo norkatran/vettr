@@ -1,9 +1,16 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
+import {
+  createSdkMcpServer,
+  query,
+  type SDKUserMessage,
+  tool
+} from '@anthropic-ai/claude-agent-sdk'
+import { z } from 'zod'
 import { type AgentEvent, encodeLine, LineBuffer, parseCommandLine } from '../shared/agent'
 import { credentialEnv } from '../shared/credential'
+import { REPLY_DESCRIPTION, REPLY_SERVER, REPLY_TOOL, ReplyTracker } from './replyTool'
 import { Translator, toCommandInfo } from './translate'
 
 // Runs inside the sandbox container. Reads commands from stdin and writes events to stdout,
@@ -52,15 +59,37 @@ class PromptQueue implements AsyncIterable<SDKUserMessage> {
 
 const prompts = new PromptQueue()
 let session: ReturnType<typeof query> | null = null
+let replies = new ReplyTracker(true)
 
 async function pump(cwd: string, credential: string, resume?: string) {
   const translator = new Translator()
+  replies = new ReplyTracker(!resume)
+  // The reply tool does nothing itself: the app reads the call from the event stream
+  const replyServer = createSdkMcpServer({
+    name: REPLY_SERVER,
+    tools: [
+      tool(
+        REPLY_TOOL,
+        REPLY_DESCRIPTION,
+        {
+          comment_id: z.string().describe('The id of the comment you are replying to'),
+          message: z.string().describe('Your reply'),
+          kind: z.enum(['question', 'resolved']).optional()
+        },
+        async ({ comment_id, message, kind }) => {
+          const result = replies.reply(comment_id, message, kind)
+          return { content: [{ type: 'text', text: result.text }], isError: result.isError }
+        }
+      )
+    ]
+  })
   session = query({
     prompt: prompts,
     options: {
       cwd,
       ...(resume ? { resume } : {}),
       // The container is the safety boundary, so the agent gets full permissions
+      mcpServers: { [REPLY_SERVER]: replyServer },
       permissionMode: 'bypassPermissions',
       allowDangerouslySkipPermissions: true,
       // Project settings and CLAUDE.md only, never user settings from the container's home
@@ -111,6 +140,7 @@ process.stdin.on('data', (chunk: string) => {
     } else if (!session) {
       emit({ type: 'error', message: 'Received a command before init' })
     } else if (command.type === 'prompt') {
+      replies.noteMessage(command.text)
       prompts.push(command.text)
     } else {
       void session.interrupt()

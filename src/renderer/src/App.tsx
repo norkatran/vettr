@@ -1,13 +1,15 @@
 import { formatReview, pendingComments } from '@shared/comments'
 import { changedFileCount } from '@shared/diff'
 import { readinessBlockReason } from '@shared/readiness'
+import { repliesByComment, sentComments } from '@shared/replies'
 import { sendReviewRound } from '@shared/reviewSend'
 import { otherTheme, parseThemeChoice, resolveTheme, type Theme } from '@shared/theme'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Changes } from './Changes'
 import { usePalette } from './CommandPalette'
 import { runCommandPalette } from './commands'
 import { useNotify } from './Notifications'
+import { ResolutionContext } from './Replies'
 import { Session } from './Session'
 import { SettingsView } from './SettingsView'
 import { Sidebar, type View } from './Sidebar'
@@ -16,6 +18,7 @@ import { useAgentSession } from './useAgentSession'
 import { useApiKey } from './useApiKey'
 import { useChanges } from './useChanges'
 import { useReadiness } from './useReadiness'
+import { useResolvedComments } from './useResolvedComments'
 import { useReviewComments } from './useReviewComments'
 import { useSessionList } from './useSessionList'
 
@@ -75,13 +78,25 @@ export function App(): React.JSX.Element {
   const session = useAgentSession(project)
   const sessions = useSessionList(project, `${session.state.status}:${session.state.sessionId}`)
   const review = useReviewComments(project, changes.changes)
+  const resolved = useResolvedComments(project)
   const pending = pendingComments(review.comments)
+  const replies = useMemo(() => repliesByComment(session.state.items), [session.state.items])
+  // Opening a stored session brings back the comments it sent, from its transcript
+  const { restore } = review
+  const { loads } = session
+  const items = session.state.items
+  const lastLoads = useRef(0)
+  useEffect(() => {
+    if (loads === lastLoads.current) return
+    lastLoads.current = loads
+    restore(sentComments(items))
+  }, [loads, items, restore])
   const status = session.state.status
   const needsNewSession = status === 'idle' || status === 'ended'
   const sendBlocked =
     agentBlock ?? (status === 'running' ? 'Wait for the agent to finish its current turn' : null)
   const sendReview = async (): Promise<void> => {
-    const message = formatReview(pending)
+    const message = formatReview(pending, review.round)
     const ids = pending.map((c) => c.id)
     const error = await sendReviewRound({
       // Record the tree before the agent touches it, so the next round can show what it changed
@@ -212,19 +227,22 @@ export function App(): React.JSX.Element {
           sessionStarted={session.state.status !== 'idle'}
           sessions={sessions}
         />
-        {view === 'settings' ? (
-          <SettingsView apiKey={apiKey} />
-        ) : view === 'session' ? (
-          <Session project={project} session={session} readiness={readiness} apiKey={apiKey} />
-        ) : (
-          <Changes
-            project={project}
-            changes={changes}
-            review={review}
-            agentBlock={agentBlock}
-            send={{ pending: pending.length, run: () => void sendReview(), blocked: sendBlocked }}
-          />
-        )}
+        <ResolutionContext.Provider value={resolved}>
+          {view === 'settings' ? (
+            <SettingsView apiKey={apiKey} />
+          ) : view === 'session' ? (
+            <Session project={project} session={session} readiness={readiness} apiKey={apiKey} />
+          ) : (
+            <Changes
+              project={project}
+              changes={changes}
+              review={review}
+              replies={replies}
+              agentBlock={agentBlock}
+              send={{ pending: pending.length, run: () => void sendReview(), blocked: sendBlocked }}
+            />
+          )}
+        </ResolutionContext.Provider>
       </div>
       <StatusBar
         project={project}

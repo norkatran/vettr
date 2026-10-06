@@ -4,7 +4,8 @@ import type { DiffLine, FileChange, RepoChanges } from './diff'
 export type Side = 'old' | 'new'
 
 export interface ReviewComment {
-  id: number
+  /** Unique for the comment's whole life, including across review rounds (a UUID). */
+  id: string
   /** Path in the working tree, as in `FileChange.path`. */
   file: string
   /** Whether it was made on the staged or the unstaged diff; line numbers differ between them. */
@@ -113,32 +114,136 @@ export function reanchor(comments: ReviewComment[], changes: RepoChanges): Revie
 export const pendingComments = (comments: ReviewComment[]): ReviewComment[] =>
   comments.filter((c) => !c.sent)
 
-/** A code fence long enough that the quoted code cannot close it early. */
-function fenceFor(lines: string[]): string {
-  const longest = Math.max(
-    0,
-    ...lines.flatMap((l) => [...l.matchAll(/`+/g)].map((m) => m[0].length))
-  )
-  return '`'.repeat(Math.max(3, longest + 1))
+/** Escape text for use in XML content or a double-quoted attribute (lossless, see `unescapeXml`). */
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\r/g, '&#13;')
+}
+
+function unescapeXml(text: string): string {
+  const named: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#13': '\r' }
+  return text.replace(/&(amp|lt|gt|quot|#13);/g, (_, name: string) => named[name] as string)
+}
+
+/** What the agent says about a comment when it replies: a question for the reviewer, or "fixed". */
+export type ReplyKind = 'question' | 'resolved'
+
+/** The name the agent calls the reply tool by (server `vettr`, tool `respond_to_comment`). */
+export const REPLY_TOOL_NAME = 'mcp__vettr__respond_to_comment'
+
+const REVIEW_INTRO =
+  'Please address these review comments on your changes. They are in the <vettr-review> block ' +
+  'below. Each <comment> has an id, the file, the side (new is the file as it is now, old is the ' +
+  'code before your change) and the line range, followed by the commented <code> and the ' +
+  "reviewer's <note>. If a comment is marked outdated, the code has since changed, so its line " +
+  'numbers may be stale. Reply to individual comments with the ' +
+  `${REPLY_TOOL_NAME} tool (comment_id, message, and optionally kind: question or resolved).`
+
+/**
+ * The message sent to the agent: a short introduction and a `<vettr-review>` block with one
+ * `<comment>` per comment (id, file, side, line range, the quoted code and the note). Everything
+ * the reader needs to rebuild the comments is in the block (see `parseReview`).
+ */
+export function formatReview(comments: ReviewComment[], round: number): string {
+  const entries = comments.map((c) => {
+    const lines = c.start === c.end ? `${c.start}` : `${c.start}-${c.end}`
+    const outdated = c.outdated ? ' outdated="true"' : ''
+    const code = c.snapshot.length === 0 ? '' : `\n${escapeXml(c.snapshot.join('\n'))}\n`
+    return [
+      `  <comment id="${escapeXml(c.id)}" file="${escapeXml(c.file)}" side="${c.side}" lines="${lines}"${outdated}>`,
+      `    <code>${code}</code>`,
+      `    <note>${escapeXml(c.text)}</note>`,
+      '  </comment>'
+    ].join('\n')
+  })
+  return `${REVIEW_INTRO}\n\n<vettr-review round="${round}">\n${entries.join('\n')}\n</vettr-review>`
+}
+
+/** A comment as read back from a sent review: what the message carries, no staging or sent state. */
+export interface SentComment {
+  id: string
+  file: string
+  side: Side
+  start: number
+  end: number
+  snapshot: string[]
+  text: string
+  round: number
+  outdated: boolean
+}
+
+function attributes(source: string): Record<string, string> {
+  const found: Record<string, string> = {}
+  for (const m of source.matchAll(/([\w-]+)="([^"]*)"/g)) {
+    found[m[1] as string] = unescapeXml(m[2] as string)
+  }
+  return found
 }
 
 /**
- * The structured message sent to the agent: one numbered entry per comment with the file, line
- * range and side, the quoted code and the comment text.
+ * Read the comments back out of a message made by `formatReview`; the inverse of it. Returns null
+ * when the text holds no `<vettr-review>` block. Malformed comments inside a block are skipped.
  */
-export function formatReview(comments: ReviewComment[]): string {
-  const entries = comments.map((c, i) => {
-    const lines = c.start === c.end ? `line ${c.start}` : `lines ${c.start}-${c.end}`
-    const where = c.side === 'old' ? `${lines}, before your change (removed code)` : `${lines}`
-    const fence = fenceFor(c.snapshot)
-    const note = c.outdated
-      ? ' (the code has since changed, so these line numbers may be stale)'
-      : ''
-    return [
-      `${i + 1}. ${c.file}, ${where}${note}:`,
-      `${fence}\n${c.snapshot.join('\n')}\n${fence}`,
-      c.text
-    ].join('\n')
-  })
-  return `Please address these review comments on your changes:\n\n${entries.join('\n\n')}`
+export function parseReview(message: string): { round: number; comments: SentComment[] } | null {
+  const block = /<vettr-review round="(\d+)">([\s\S]*?)<\/vettr-review>/.exec(message)
+  if (!block) return null
+  const round = Number(block[1])
+  const comments: SentComment[] = []
+  const comment =
+    /<comment ([^>]*)>\s*<code>([\s\S]*?)<\/code>\s*<note>([\s\S]*?)<\/note>\s*<\/comment>/g
+  for (const m of (block[2] as string).matchAll(comment)) {
+    const a = attributes(m[1] as string)
+    const range = /^(\d+)(?:-(\d+))?$/.exec(a.lines ?? '')
+    if (!a.id || a.file === undefined || (a.side !== 'old' && a.side !== 'new') || !range) continue
+    const code = unescapeXml(m[2] as string)
+    comments.push({
+      id: a.id,
+      file: a.file,
+      side: a.side,
+      start: Number(range[1]),
+      end: Number(range[2] ?? range[1]),
+      snapshot: code === '' ? [] : code.slice(1, -1).split('\n'),
+      text: unescapeXml(m[3] as string),
+      round,
+      outdated: a.outdated === 'true'
+    })
+  }
+  return { round, comments }
+}
+
+/**
+ * Rebuild the sent comments from what the transcript says was sent (a stored session being opened).
+ * The sent comments in `current` are replaced; pending ones are kept, moved to the next round. The
+ * message does not say whether a comment was on the staged or unstaged diff, so each starts on the
+ * unstaged one and `reanchor` finds it on either. A comment sent in several rounds keeps its last
+ * text. Returns the comments and the round to continue from.
+ */
+export function rehydrate(
+  current: ReviewComment[],
+  sent: SentComment[],
+  changes: RepoChanges | null
+): { comments: ReviewComment[]; round: number } {
+  const latest = new Map<string, SentComment>()
+  for (const c of sent) latest.set(c.id, c)
+  const round = Math.max(0, ...sent.map((c) => c.round)) + 1
+  const restored: ReviewComment[] = [...latest.values()].map((c) => ({
+    id: c.id,
+    file: c.file,
+    staged: false,
+    side: c.side,
+    start: c.start,
+    end: c.end,
+    snapshot: c.snapshot,
+    text: c.text,
+    round: c.round,
+    sent: true,
+    outdated: c.outdated
+  }))
+  const pending = pendingComments(current).map((c) => ({ ...c, round }))
+  const comments = [...restored, ...pending]
+  return { comments: changes ? reanchor(comments, changes) : comments, round }
 }

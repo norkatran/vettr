@@ -39,6 +39,7 @@ import {
   unstageFiles
 } from './git'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
+import { readResolved, setResolved } from './resolvedStore'
 import {
   checkDocker,
   checkDockerDetailed,
@@ -50,7 +51,7 @@ import {
 import { buildImageFromApp } from './sandboxImage'
 import { listProjectSessions, loadSession } from './sessions'
 import { getSettings, loadSettings, updateSettings } from './settingsStore'
-import { transcriptsDir } from './transcripts'
+import { projectDataDir, transcriptsDir } from './transcripts'
 import { watchTree } from './watcher'
 
 const apiKeys = createApiKeyStore(join(app.getPath('userData'), 'apikey'), {
@@ -293,6 +294,14 @@ void app.whenReady().then(async () => {
       id
     )
   })
+  ipcMain.handle(IpcChannel.getResolvedComments, (_event, project: string) =>
+    readResolved(projectDataDir(app.getPath('userData'), project))
+  )
+  ipcMain.handle(
+    IpcChannel.setCommentResolved,
+    (_event, project: string, id: string, resolved: boolean) =>
+      setResolved(projectDataDir(app.getPath('userData'), project), id, resolved)
+  )
   ipcMain.handle(IpcChannel.agentStop, () => agentManager.newSession())
   ipcMain.handle(IpcChannel.getSlashCommands, () => agentManager.slashCommands)
   ipcMain.handle(IpcChannel.getReadiness, () => agentManager.readiness)

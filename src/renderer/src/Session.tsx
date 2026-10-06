@@ -1,9 +1,12 @@
 import type { SlashCommandInfo } from '@shared/agent'
+import { parseReview, type SentComment } from '@shared/comments'
 import { type Readiness, readinessBlockReason } from '@shared/readiness'
+import { type AgentReply, repliesByComment, replyOf } from '@shared/replies'
 import { describeTool, relativePath, type TranscriptItem } from '@shared/session'
 import { completeCommand, filterCommands, slashQuery } from '@shared/slashCommands'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiKeyForm } from './ApiKeyForm'
+import { ReplyBubble, ResolvableThread } from './Replies'
 import type { AgentSession } from './useAgentSession'
 import type { ApiKey } from './useApiKey'
 import { useSlashCommands } from './useSlashCommands'
@@ -126,10 +129,64 @@ function Composer({
   )
 }
 
-function Item({ item, project }: { item: TranscriptItem; project: string }): React.JSX.Element {
+/** A review round the user sent, rebuilt from the message so it survives reloads and resumes. */
+function ReviewMessage({
+  round,
+  comments,
+  threads
+}: {
+  round: number
+  comments: SentComment[]
+  threads: Map<string, AgentReply[]>
+}): React.JSX.Element {
+  return (
+    <div className="review-message">
+      <div className="review-title">
+        Review, round {round}: {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
+      </div>
+      {comments.map((c) => (
+        <ResolvableThread
+          key={c.id}
+          id={c.id}
+          className={`comment${c.outdated ? ' outdated' : ''}`}
+          summary={`${c.file}:${c.start === c.end ? c.start : `${c.start}-${c.end}`}`}
+        >
+          <div className="comment-meta">
+            <span>
+              {c.file}:{c.start === c.end ? c.start : `${c.start}-${c.end}`}
+              {c.side === 'old' ? ' (removed code)' : ''}
+            </span>
+            {c.outdated && <span>outdated</span>}
+          </div>
+          {c.snapshot.length > 0 && <pre className="comment-snapshot">{c.snapshot.join('\n')}</pre>}
+          <p>{c.text}</p>
+          {(threads.get(c.id) ?? []).map((reply, i) => (
+            <ReplyBubble key={i} reply={reply} />
+          ))}
+        </ResolvableThread>
+      ))}
+    </div>
+  )
+}
+
+function Item({
+  item,
+  project,
+  threads,
+  where
+}: {
+  item: TranscriptItem
+  project: string
+  threads: Map<string, AgentReply[]>
+  where: Map<string, string>
+}): React.JSX.Element {
   switch (item.kind) {
-    case 'user':
+    case 'user': {
+      const review = parseReview(item.text)
+      if (review && review.comments.length > 0)
+        return <ReviewMessage {...review} threads={threads} />
       return <div className="msg user">{item.text}</div>
+    }
     case 'text':
       return <div className="msg assistant">{item.text}</div>
     case 'edit':
@@ -138,7 +195,9 @@ function Item({ item, project }: { item: TranscriptItem; project: string }): Rea
       return <div className="msg error">{item.message}</div>
     case 'notice':
       return <div className="notice">{item.text}</div>
-    case 'tool':
+    case 'tool': {
+      const reply = replyOf(item)
+      if (reply) return <ReplyBubble reply={reply} where={where.get(reply.commentId)} />
       return (
         <details className={`tool ${item.status}`}>
           <summary>
@@ -156,6 +215,7 @@ function Item({ item, project }: { item: TranscriptItem; project: string }): Rea
           )}
         </details>
       )
+    }
   }
 }
 
@@ -173,6 +233,17 @@ function Transcript({
   const { state } = session
   const block = readinessBlockReason(readiness)
   const end = useRef<HTMLDivElement>(null)
+  const threads = useMemo(() => repliesByComment(state.items), [state.items])
+  // Where each comment sent so far points, so a reply in the flow says what it answers
+  const where = useMemo(() => {
+    const found = new Map<string, string>()
+    for (const item of state.items) {
+      if (item.kind !== 'user') continue
+      for (const c of parseReview(item.text)?.comments ?? [])
+        found.set(c.id, `${c.file}:${c.start === c.end ? c.start : `${c.start}-${c.end}`}`)
+    }
+    return found
+  }, [state.items])
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' })
   }, [state.items])
@@ -181,7 +252,7 @@ function Transcript({
     <main className="session active">
       <div className="transcript">
         {state.items.map((item, i) => (
-          <Item key={i} item={item} project={project} />
+          <Item key={i} item={item} project={project} threads={threads} where={where} />
         ))}
         {state.status === 'running' && <div className="working">Working…</div>}
         <div ref={end} />

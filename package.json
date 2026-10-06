@@ -14,7 +14,7 @@
     "format:check": "biome check .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "build:runner": "esbuild src/runner/index.ts --bundle --platform=node --format=esm --target=node22 --external:@anthropic-ai/claude-agent-sdk --outfile=sandbox/dist/runner.mjs",
+    "build:runner": "esbuild src/runner/index.ts --bundle --platform=node --format=esm --target=node22 --external:@anthropic-ai/claude-agent-sdk --external:zod --outfile=sandbox/dist/runner.mjs",
     "build:sandbox": "npm run build:runner && docker build -t vettr-sandbox --build-arg SDK_VERSION=$(node -p \"require('./package.json').devDependencies['@anthropic-ai/claude-agent-sdk']\") sandbox"
   },
   "dependencies": {
@@ -36,7 +36,8 @@
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2",
     "vite": "^7.3.6",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "zod": "^4.0.0"
   },
   "allowScripts": {
     "electron@44.5.1": true,

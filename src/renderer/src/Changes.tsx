@@ -1,6 +1,7 @@
 import { rangeOf, type Side, snapshotLines } from '@shared/comments'
 import { changedFileCount, type DiffLine, type FileChange, splitRows } from '@shared/diff'
 import { highlightHunk } from '@shared/highlight'
+import type { AgentReply } from '@shared/replies'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CommentContext,
@@ -23,6 +24,8 @@ interface ChangesProps {
   project: string | null
   changes: ChangesState
   review: Review
+  /** The agent's replies to the comments, by comment id. */
+  replies: Map<string, AgentReply[]>
   /** Why comments cannot be written or saved (the agent is not ready), or null. */
   agentBlock: string | null
   /** Send the unsent comments to the agent; null when that is not possible, with the reason. */
@@ -33,6 +36,7 @@ export function Changes({
   project,
   changes,
   review,
+  replies,
   agentBlock,
   send
 }: ChangesProps): React.JSX.Element {
@@ -63,6 +67,7 @@ export function Changes({
     readOnly: showSince,
     locked: agentBlock,
     comments: review.comments,
+    replies,
     draft,
     pick: (file, isStaged, side, no, shift) => {
       if (agentBlock) return

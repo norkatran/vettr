@@ -514,6 +514,34 @@ button:disabled {
   background: var(--accent);
   color: var(--text-on-accent);
 }
+.review-message {
+  align-self: flex-end;
+  width: 85%;
+}
+.review-title {
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.agent-reply {
+  max-width: 640px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: var(--bg-elevated);
+  border-left: 3px solid var(--border);
+  border-radius: 6px;
+}
+.agent-reply.question {
+  border-left-color: #d29922;
+}
+.agent-reply.resolved {
+  border-left-color: #3fb950;
+}
+.agent-reply p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .msg.assistant {
   color: var(--text-strong);
 }
@@ -862,6 +890,9 @@ button.secondary:hover:not(:disabled) {
   border-left: 3px solid var(--border-focus);
   border-radius: 6px;
 }
+.review-message .comment {
+  max-width: none;
+}
 .comment.sent {
   opacity: 0.6;
   border-left-color: var(--border);
@@ -916,6 +947,17 @@ button.secondary:hover:not(:disabled) {
 }
 .outdated-comments summary {
   cursor: pointer;
+}
+.resolved-thread {
+  opacity: 0.7;
+}
+.resolved-thread > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.resolved-thread[open] > summary {
+  margin-bottom: 4px;
 }
 .comment-snapshot {
   max-width: 640px;

@@ -4,10 +4,13 @@ import {
   formatReview,
   inRange,
   lineNo,
+  parseReview,
   pendingComments,
   type ReviewComment,
   rangeOf,
   reanchor,
+  rehydrate,
+  type SentComment,
   snapshotLines
 } from './comments'
 import type { DiffLine, FileChange, RepoChanges } from './diff'
@@ -46,7 +49,7 @@ const file: FileChange = {
 }
 
 const comment = (over: Partial<ReviewComment> = {}): ReviewComment => ({
-  id: 1,
+  id: 'c1',
   file: 'a.ts',
   staged: false,
   side: 'new',
@@ -104,39 +107,125 @@ describe('endsAt', () => {
 
 describe('pendingComments', () => {
   it('drops comments already sent', () => {
-    const pending = comment({ id: 1 })
-    expect(pendingComments([pending, comment({ id: 2, sent: true })])).toEqual([pending])
+    const pending = comment({ id: 'c1' })
+    expect(pendingComments([pending, comment({ id: 'c2', sent: true })])).toEqual([pending])
   })
 })
 
 describe('formatReview', () => {
-  it('lists each comment with its location, quoted code and text', () => {
-    const message = formatReview([
-      comment(),
-      comment({ side: 'old', start: 2, end: 2, snapshot: ['two'], text: 'Keep this' })
-    ])
-    expect(message).toBe(
+  it('wraps the comments in a vettr-review block with the round', () => {
+    const message = formatReview(
       [
-        'Please address these review comments on your changes:',
-        '',
-        '1. a.ts, lines 2-3:',
-        '```\nTWO\nthree\n```',
-        'Why?',
-        '',
-        '2. a.ts, line 2, before your change (removed code):',
-        '```\ntwo\n```',
-        'Keep this'
+        comment(),
+        comment({ id: 'c2', side: 'old', start: 2, end: 2, snapshot: ['two'], text: 'Keep this' })
+      ],
+      2
+    )
+    expect(message).toContain(
+      [
+        '<vettr-review round="2">',
+        '  <comment id="c1" file="a.ts" side="new" lines="2-3">',
+        '    <code>\nTWO\nthree\n</code>',
+        '    <note>Why?</note>',
+        '  </comment>',
+        '  <comment id="c2" file="a.ts" side="old" lines="2">',
+        '    <code>\ntwo\n</code>',
+        '    <note>Keep this</note>',
+        '  </comment>',
+        '</vettr-review>'
       ].join('\n')
     )
   })
 
-  it('uses a longer fence when the code contains backticks', () => {
-    const message = formatReview([comment({ snapshot: ['a ```b``` c', '`d`'] })])
-    expect(message).toContain('````\na ```b``` c\n`d`\n````')
+  it('introduces the format before the block', () => {
+    expect(formatReview([comment()], 1).startsWith('Please address these review comments')).toBe(
+      true
+    )
   })
 
-  it('handles a comment with no visible snapshot', () => {
-    expect(formatReview([comment({ snapshot: [] })])).toContain('```\n\n```')
+  it('marks outdated comments', () => {
+    expect(formatReview([comment({ outdated: true })], 1)).toContain('lines="2-3" outdated="true">')
+  })
+
+  it('escapes markup in code, notes and attributes', () => {
+    const message = formatReview(
+      [comment({ file: 'a"<b>.ts', snapshot: ['x < y && </code>'], text: '</note> & "q"' })],
+      1
+    )
+    expect(message).toContain('file="a&quot;&lt;b&gt;.ts"')
+    expect(message).toContain('x &lt; y &amp;&amp; &lt;/code&gt;')
+    expect(message).toContain(
+      '<note>&lt;/note&gt; &amp; "q"</note>'.replace('"q"', '&quot;q&quot;')
+    )
+  })
+})
+
+describe('parseReview', () => {
+  const roundTrip = (comments: ReviewComment[], round = 3) => {
+    const parsed = parseReview(formatReview(comments, round))
+    return parsed?.comments
+  }
+
+  it('returns null when there is no review block', () => {
+    expect(parseReview('just a message')).toBeNull()
+  })
+
+  it('reads back what formatReview wrote', () => {
+    const c = comment({ outdated: true })
+    expect(roundTrip([c])).toEqual([
+      {
+        id: 'c1',
+        file: 'a.ts',
+        side: 'new',
+        start: 2,
+        end: 3,
+        snapshot: ['TWO', 'three'],
+        text: 'Why?',
+        round: 3,
+        outdated: true
+      }
+    ])
+  })
+
+  it('reads a single line and the round', () => {
+    const parsed = parseReview(formatReview([comment({ start: 5, end: 5 })], 4))
+    expect(parsed?.round).toBe(4)
+    expect(parsed?.comments[0]).toMatchObject({ start: 5, end: 5 })
+  })
+
+  it('round-trips hostile text exactly', () => {
+    const nasty = comment({
+      file: 'we"ird <&>.ts',
+      snapshot: ['</code></comment>', '', '  ]]> & &amp; &lt;', 'tab\there\r'],
+      text: '\n  </note></vettr-review> & "quoted" &amp;\r\nlast\n'
+    })
+    const [back] = roundTrip([nasty]) ?? []
+    expect(back).toMatchObject({ file: nasty.file, snapshot: nasty.snapshot, text: nasty.text })
+  })
+
+  it('tells no snapshot apart from one blank line', () => {
+    expect(roundTrip([comment({ snapshot: [] })])?.[0]?.snapshot).toEqual([])
+    expect(roundTrip([comment({ snapshot: [''] })])?.[0]?.snapshot).toEqual([''])
+  })
+
+  it('finds the block amid other text and skips malformed comments', () => {
+    const message = `before\n${formatReview([comment()], 1)}\nafter`
+    expect(parseReview(message)?.comments).toHaveLength(1)
+    const broken =
+      '<vettr-review round="1"><comment id="x" file="f" side="mid" lines="1"><code></code><note>n</note></comment></vettr-review>'
+    expect(parseReview(broken)?.comments).toEqual([])
+    const wrap = (attrs: string) =>
+      `<vettr-review round="1"><comment ${attrs}><code></code><note>n</note></comment></vettr-review>`
+    for (const attrs of [
+      'file="f" side="new" lines="1"',
+      'id="x" side="new" lines="1"',
+      'id="x" file="f" lines="1"',
+      'id="x" file="f" side="new"',
+      'id="x" file="f" side="new" lines="a-b"'
+    ]) {
+      expect(parseReview(wrap(attrs))?.comments).toEqual([])
+    }
+    expect(parseReview(wrap('id="x" file="f" side="new" lines="1"'))?.comments).toHaveLength(1)
   })
 })
 
@@ -232,10 +321,55 @@ describe('reanchor', () => {
   })
 })
 
-describe('formatReview with outdated comments', () => {
-  it('warns that the line numbers may be stale', () => {
-    expect(formatReview([comment({ outdated: true })])).toContain(
-      '1. a.ts, lines 2-3 (the code has since changed, so these line numbers may be stale):'
-    )
+describe('rehydrate', () => {
+  const sent = (id: string, round: number, text = id): SentComment => ({
+    id,
+    file: 'a.ts',
+    side: 'new',
+    start: 2,
+    end: 3,
+    snapshot: ['TWO', 'three'],
+    text,
+    round,
+    outdated: false
+  })
+  const none: RepoChanges = { staged: [], unstaged: [file] }
+
+  it('restores sent comments, anchored where their snapshot is', () => {
+    const { comments, round } = rehydrate([], [sent('c1', 1), sent('c2', 2)], none)
+    expect(comments.map((c) => [c.id, c.sent, c.outdated, c.start])).toEqual([
+      ['c1', true, false, 2],
+      ['c2', true, false, 2]
+    ])
+    expect(round).toBe(3)
+  })
+
+  it('finds a comment that is now on the staged diff', () => {
+    const { comments } = rehydrate([], [sent('c1', 1)], { staged: [file], unstaged: [] })
+    expect(comments[0]).toMatchObject({ staged: true, outdated: false })
+  })
+
+  it('marks a comment outdated when its code is gone', () => {
+    const { comments } = rehydrate([], [sent('c1', 1)], { staged: [], unstaged: [] })
+    expect(comments[0]?.outdated).toBe(true)
+  })
+
+  it('replaces old sent comments, keeps pending ones and moves them to the new round', () => {
+    const current = [comment({ id: 'old', sent: true }), comment({ id: 'draft', round: 1 })]
+    const { comments, round } = rehydrate(current, [sent('c1', 4)], none)
+    expect(comments.map((c) => c.id)).toEqual(['c1', 'draft'])
+    expect(comments[1]?.round).toBe(round)
+    expect(round).toBe(5)
+  })
+
+  it('keeps the last text of a comment sent more than once', () => {
+    const { comments } = rehydrate([], [sent('c1', 1, 'first'), sent('c1', 2, 'second')], none)
+    expect(comments).toHaveLength(1)
+    expect(comments[0]).toMatchObject({ text: 'second', round: 2 })
+  })
+
+  it('starts at round 1 with nothing sent, and skips anchoring without changes', () => {
+    expect(rehydrate([], [], none).round).toBe(1)
+    expect(rehydrate([], [sent('c1', 1)], null).comments[0]?.outdated).toBe(false)
   })
 })

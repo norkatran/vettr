@@ -60,6 +60,10 @@ export interface VettrApi {
   listSessions(): Promise<SessionInfo[]>
   /** A stored session of the open project rebuilt as Session view state, or null if unreadable. */
   loadSession(id: string): Promise<SessionState | null>
+  /** The ids of the comments the user resolved in `project`. */
+  getResolvedComments(project: string): Promise<string[]>
+  /** Resolve or reopen a comment (and so its thread); resolves to the ids now resolved. */
+  setCommentResolved(project: string, id: string, resolved: boolean): Promise<string[]>
   /** The slash commands the agent currently offers (empty while it is not running). */
   getSlashCommands(): Promise<SlashCommandInfo[]>
   /** Subscribe to events from the running session; returns an unsubscribe function. */
@@ -103,6 +107,8 @@ export const IpcChannel = {
   getSlashCommands: 'agent:commands',
   listSessions: 'agent:sessions',
   loadSession: 'agent:session',
+  getResolvedComments: 'comments:resolved',
+  setCommentResolved: 'comments:resolve',
   hasApiKey: 'apikey:status',
   setApiKey: 'apikey:set',
   clearApiKey: 'apikey:clear',
