@@ -52,7 +52,7 @@ import { buildImageFromApp } from './sandboxImage'
 import { listProjectSessions, loadSession } from './sessions'
 import { getSettings, loadSettings, updateSettings } from './settingsStore'
 import { projectDataDir, transcriptsDir } from './transcripts'
-import { watchTree } from './watcher'
+import { createProjectWatcher } from './watcher'
 
 const apiKeys = createApiKeyStore(join(app.getPath('userData'), 'apikey'), {
   isAvailable: () => safeStorage.isEncryptionAvailable(),
@@ -122,23 +122,16 @@ function createWindow(): void {
   }
 }
 
-let stopWatching: (() => Promise<void>) | null = null
-
-/** Watch `path` and tell every window when its working tree or git state changes. */
-async function watchProject(path: string): Promise<void> {
-  const previous = stopWatching
-  stopWatching = null
-  await previous?.()
-  stopWatching = await watchTree(path, () => {
-    for (const win of BrowserWindow.getAllWindows()) win.webContents.send(IpcChannel.repoChanged)
-  })
-}
+/** Watches the open project and tells every window when its working tree or git state changes. */
+const projectWatcher = createProjectWatcher(() => {
+  for (const win of BrowserWindow.getAllWindows()) win.webContents.send(IpcChannel.repoChanged)
+})
 
 function activateProject(win: BrowserWindow | undefined, path: string): void {
   // The manager tears the old project's agent down and prewarms one for this project
   void agentManager.setProject(path).catch(() => undefined)
   setCurrentProject(path)
-  void watchProject(path)
+  void projectWatcher.watch(path)
   buildMenu()
   const target = win ?? BrowserWindow.getAllWindows()[0]
   target?.webContents.send(IpcChannel.projectOpened, path)
@@ -380,7 +373,7 @@ void app.whenReady().then(async () => {
   )
   const launchProject = getProjectState().current
   if (launchProject) {
-    void watchProject(launchProject)
+    void projectWatcher.watch(launchProject)
     void agentManager.setProject(launchProject).catch(() => undefined)
   }
   createWindow()

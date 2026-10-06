@@ -30,6 +30,37 @@ export async function findRepoRoot(dir: string): Promise<string | null> {
 }
 
 /**
+ * Paths inside `dir` that git ignores, relative to it with `/` separators, or null if git
+ * cannot say. One command covers the whole tree: `--directory` reports a fully ignored
+ * directory (`vendor/`) as one entry instead of listing its files, so it stays cheap on large
+ * projects. Trailing slashes are dropped. Tracked files are never reported, even if a
+ * pattern matches them.
+ */
+export async function listIgnored(dir: string): Promise<string[] | null> {
+  try {
+    const { stdout } = await run(
+      'git',
+      [
+        '--no-optional-locks',
+        'ls-files',
+        '--others',
+        '--ignored',
+        '--exclude-standard',
+        '--directory',
+        '-z'
+      ],
+      { cwd: dir, maxBuffer: 256 * 1024 * 1024 }
+    )
+    return stdout
+      .split('\0')
+      .filter(Boolean)
+      .map((path) => path.replace(/\/$/, ''))
+  } catch {
+    return null
+  }
+}
+
+/**
  * Branch, upstream divergence and change count for the repo at `dir`, or null if it cannot
  * be read. `--no-optional-locks` stops this background query from contending with the
  * user's own git commands over the index lock.

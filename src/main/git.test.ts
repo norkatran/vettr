@@ -19,6 +19,7 @@ import {
   getChangesSince,
   getRepoStatus,
   listBranches,
+  listIgnored,
   listRemotes,
   publishBranch,
   pushCurrent,
@@ -36,6 +37,29 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(root, { recursive: true, force: true })
+})
+
+describe('listIgnored', () => {
+  it('lists ignored directories whole and ignored files, not tracked or untracked ones', async () => {
+    execFileSync('git', ['init', '-q', root])
+    writeFileSync(join(root, '.gitignore'), 'vendor/\n*.log\n')
+    mkdirSync(join(root, 'vendor', 'pkg'), { recursive: true })
+    writeFileSync(join(root, 'vendor', 'pkg', 'a.php'), '1')
+    mkdirSync(join(root, 'src'))
+    writeFileSync(join(root, 'src', 'debug.log'), '1')
+    writeFileSync(join(root, 'src', 'a.ts'), '1')
+    const ignored = await listIgnored(root)
+    expect(ignored?.sort()).toEqual(['src/debug.log', 'vendor'])
+  })
+
+  it('returns an empty list when nothing is ignored', async () => {
+    execFileSync('git', ['init', '-q', root])
+    expect(await listIgnored(root)).toEqual([])
+  })
+
+  it('returns null outside a repository', async () => {
+    expect(await listIgnored(root)).toBeNull()
+  })
 })
 
 describe('findRepoRoot', () => {
