@@ -13,3 +13,4 @@ Every feature that adds something new to vettr, or improves an existing part, ge
 | --- | --- | --- |
 | 0001 | [MVP](0001-mvp.md) | Fulfilled (release checklist open) |
 | 0002 | [Agent lifecycle and readiness](0002-agent-lifecycle.md) | Fulfilled |
+| 0003 | [Slash command discovery](0003-slash-commands.md) | Fulfilled |

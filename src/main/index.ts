@@ -294,6 +294,7 @@ void app.whenReady().then(async () => {
     )
   })
   ipcMain.handle(IpcChannel.agentStop, () => agentManager.newSession())
+  ipcMain.handle(IpcChannel.getSlashCommands, () => agentManager.slashCommands)
   ipcMain.handle(IpcChannel.getReadiness, () => agentManager.readiness)
   ipcMain.handle(
     IpcChannel.openInEditor,

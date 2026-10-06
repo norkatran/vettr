@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { type AgentEvent, encodeLine, LineBuffer, parseCommandLine } from '../shared/agent'
 import { credentialEnv } from '../shared/credential'
-import { Translator } from './translate'
+import { Translator, toCommandInfo } from './translate'
 
 // Runs inside the sandbox container. Reads commands from stdin and writes events to stdout,
 // one JSON object per line (see src/shared/agent.ts). Anything else goes to stderr.
@@ -75,6 +75,11 @@ async function pump(cwd: string, credential: string, resume?: string) {
       stderr: (data) => process.stderr.write(data)
     }
   })
+  // The idle query answers before any prompt; later changes arrive as `commands_changed`
+  session.supportedCommands().then(
+    (commands) => emit({ type: 'commands', commands: toCommandInfo(commands) }),
+    (error) => process.stderr.write(`could not list slash commands: ${error}\n`)
+  )
   // A failed turn is reported by the translator and then makes the SDK throw as well; report once
   let reported = false
   try {

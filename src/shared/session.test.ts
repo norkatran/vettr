@@ -191,3 +191,14 @@ describe('load', () => {
     expect(run(initialSession, { type: 'load', state: loaded })).toBe(loaded)
   })
 })
+
+describe('commands', () => {
+  it('leaves the session unchanged', () => {
+    const state = initialSession
+    const next = sessionReducer(state, {
+      type: 'event',
+      event: { type: 'commands', commands: [] }
+    })
+    expect(next).toBe(state)
+  })
+})

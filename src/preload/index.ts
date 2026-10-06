@@ -38,6 +38,7 @@ const api: VettrApi = {
     ipcRenderer.on(IpcChannel.agentEvent, listener)
     return () => ipcRenderer.removeListener(IpcChannel.agentEvent, listener)
   },
+  getSlashCommands: () => ipcRenderer.invoke(IpcChannel.getSlashCommands),
   getReadiness: () => ipcRenderer.invoke(IpcChannel.getReadiness),
   onReadiness: (callback) => {
     const listener = (_event: IpcRendererEvent, readiness: Readiness): void => callback(readiness)

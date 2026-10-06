@@ -151,3 +151,41 @@ describe('Translator session id', () => {
     ])
   })
 })
+
+describe('Translator commands', () => {
+  it('turns commands_changed into a commands event with only the app fields', () => {
+    const events = new Translator().translate({
+      type: 'system',
+      subtype: 'commands_changed',
+      commands: [
+        { name: 'init', description: 'Set up', argumentHint: '', builtin: true },
+        { name: 'usage', description: 'Cost', argumentHint: '<x>', aliases: ['cost'] }
+      ]
+    } as never)
+    expect(events).toEqual([
+      {
+        type: 'commands',
+        commands: [
+          { name: 'init', description: 'Set up', argumentHint: '' },
+          { name: 'usage', description: 'Cost', argumentHint: '<x>', aliases: ['cost'] }
+        ]
+      }
+    ])
+  })
+})
+
+describe('Translator commands fallbacks', () => {
+  it('fills a missing argument hint and tolerates a missing list', () => {
+    const translator = new Translator()
+    expect(
+      translator.translate({
+        type: 'system',
+        subtype: 'commands_changed',
+        commands: [{ name: 'a', description: 'd' }]
+      } as never)
+    ).toEqual([{ type: 'commands', commands: [{ name: 'a', description: 'd', argumentHint: '' }] }])
+    expect(translator.translate({ type: 'system', subtype: 'commands_changed' })).toEqual([
+      { type: 'commands', commands: [] }
+    ])
+  })
+})

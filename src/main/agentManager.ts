@@ -1,4 +1,4 @@
-import type { AgentEvent } from '@shared/agent'
+import type { AgentEvent, SlashCommandInfo } from '@shared/agent'
 import { INITIAL_READINESS, type Readiness, readinessBlockReason } from '@shared/readiness'
 import type { DockerProblem } from '@shared/sandbox'
 
@@ -48,9 +48,16 @@ export class AgentManager {
   private warmResume: string | undefined
   private sessionId: string | null = null
   private crashes = 0
+  /** The latest slash commands the agent reported; empty while no agent is running. */
+  private commands: SlashCommandInfo[] = []
 
   constructor(private readonly deps: AgentManagerDeps) {
     deps.agent.onEvent((event) => this.onAgentEvent(event))
+  }
+
+  /** The slash commands the running agent offers (the renderer may load after the event). */
+  get slashCommands(): SlashCommandInfo[] {
+    return this.commands
   }
 
   get readiness(): Readiness {
@@ -223,6 +230,11 @@ export class AgentManager {
   }
 
   private onAgentEvent(event: AgentEvent): void {
+    if (event.type === 'commands') {
+      this.commands = event.commands
+    } else if (event.type === 'exited') {
+      this.commands = []
+    }
     if (event.type === 'session-started') {
       this.sessionId = event.sessionId
     } else if (event.type === 'turn-finished') {

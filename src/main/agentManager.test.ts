@@ -452,3 +452,17 @@ describe('AgentManager image build', () => {
     expect(agent.warm).not.toHaveBeenCalled()
   })
 })
+
+describe('AgentManager slash commands', () => {
+  const commands = [{ name: 'init', description: 'Set up', argumentHint: '' }]
+
+  it('keeps the latest list and clears it when the agent exits', async () => {
+    const { manager, emit } = setup()
+    await manager.setProject('/p')
+    expect(manager.slashCommands).toEqual([])
+    emit({ type: 'commands', commands })
+    expect(manager.slashCommands).toEqual(commands)
+    emit({ type: 'exited', code: 0 })
+    expect(manager.slashCommands).toEqual([])
+  })
+})

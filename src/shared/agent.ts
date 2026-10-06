@@ -1,7 +1,19 @@
+/** A slash command the agent offers (a built-in, skill, project or plugin command). */
+export interface SlashCommandInfo {
+  /** Without the leading slash. */
+  name: string
+  description: string
+  /** Hint for the arguments, for example `<file>`; empty when it takes none. */
+  argumentHint: string
+  aliases?: string[]
+}
+
 /** Events an agent session emits; the UI depends only on these, never on a specific agent. */
 export type AgentEvent =
   /** The SDK session ID, reported once per session; it is what `resume` takes later. */
   | { type: 'session-started'; sessionId: string }
+  /** The full list of slash commands now available; replaces any earlier list. */
+  | { type: 'commands'; commands: SlashCommandInfo[] }
   | { type: 'text'; text: string }
   | { type: 'tool-started'; id: string; name: string; input: unknown }
   | { type: 'tool-finished'; id: string; output: string; isError: boolean }
@@ -41,6 +53,7 @@ export type RunnerCommand =
 
 const EVENT_TYPES = new Set([
   'session-started',
+  'commands',
   'text',
   'tool-started',
   'tool-finished',

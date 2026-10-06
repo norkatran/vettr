@@ -1,4 +1,4 @@
-import type { AgentEvent } from '../shared/agent'
+import type { AgentEvent, SlashCommandInfo } from '../shared/agent'
 
 /** The parts of the Agent SDK's messages the runner reads; kept structural so tests need no SDK. */
 export interface SdkMessage {
@@ -9,6 +9,17 @@ export interface SdkMessage {
   errors?: string[]
   message?: unknown
   session_id?: string
+  commands?: SlashCommandInfo[]
+}
+
+/** Keep only the fields the app uses, so the protocol does not depend on SDK additions. */
+export function toCommandInfo(commands: SlashCommandInfo[]): SlashCommandInfo[] {
+  return commands.map(({ name, description, argumentHint, aliases }) => ({
+    name,
+    description,
+    argumentHint: argumentHint ?? '',
+    ...(aliases?.length ? { aliases } : {})
+  }))
 }
 
 interface Block {
@@ -69,6 +80,10 @@ export class Translator {
     if (message.type === 'assistant') return this.assistant(message)
     if (message.type === 'user') return this.toolResults(message)
     if (message.type === 'result') return this.result(message)
+    // Skills found mid-session push the whole list, which replaces the earlier one
+    if (message.type === 'system' && message.subtype === 'commands_changed') {
+      return [{ type: 'commands', commands: toCommandInfo(message.commands ?? []) }]
+    }
     return []
   }
 

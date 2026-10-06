@@ -1,4 +1,4 @@
-import type { AgentEvent } from './agent'
+import type { AgentEvent, SlashCommandInfo } from './agent'
 import type { FileChange, RepoChanges } from './diff'
 import type { Branch, GitAction } from './gitActions'
 import type { Readiness } from './readiness'
@@ -60,6 +60,8 @@ export interface VettrApi {
   listSessions(): Promise<SessionInfo[]>
   /** A stored session of the open project rebuilt as Session view state, or null if unreadable. */
   loadSession(id: string): Promise<SessionState | null>
+  /** The slash commands the agent currently offers (empty while it is not running). */
+  getSlashCommands(): Promise<SlashCommandInfo[]>
   /** Subscribe to events from the running session; returns an unsubscribe function. */
   onAgentEvent(callback: (event: AgentEvent) => void): () => void
   /** Whether an Anthropic API key is saved. The key itself never reaches the renderer. */
@@ -98,6 +100,7 @@ export const IpcChannel = {
   agentEvent: 'agent:event',
   getReadiness: 'agent:readiness',
   readiness: 'agent:readystate',
+  getSlashCommands: 'agent:commands',
   listSessions: 'agent:sessions',
   loadSession: 'agent:session',
   hasApiKey: 'apikey:status',

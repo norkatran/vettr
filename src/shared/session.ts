@@ -61,6 +61,8 @@ function applyEvent(state: SessionState, event: AgentEvent): SessionState {
   switch (event.type) {
     case 'session-started':
       return { ...state, sessionId: event.sessionId }
+    case 'commands':
+      return state
     case 'text':
       return { ...state, items: [...items, { kind: 'text', text: event.text }] }
     case 'tool-started':

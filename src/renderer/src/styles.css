@@ -593,6 +593,37 @@ button:disabled {
 .composer textarea {
   min-height: 80px;
 }
+.slash-menu {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+}
+.slash-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.slash-item.active {
+  background: var(--bg-input);
+}
+.slash-name {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.slash-arg,
+.slash-desc {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slash-arg {
+  font-size: 0.9em;
+}
 .ended {
   display: flex;
   align-items: center;

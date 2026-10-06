@@ -1,9 +1,12 @@
+import type { SlashCommandInfo } from '@shared/agent'
 import { type Readiness, readinessBlockReason } from '@shared/readiness'
 import { describeTool, relativePath, type TranscriptItem } from '@shared/session'
+import { completeCommand, filterCommands, slashQuery } from '@shared/slashCommands'
 import { useEffect, useRef, useState } from 'react'
 import { ApiKeyForm } from './ApiKeyForm'
 import type { AgentSession } from './useAgentSession'
 import type { ApiKey } from './useApiKey'
+import { useSlashCommands } from './useSlashCommands'
 
 interface SessionProps {
   project: string | null
@@ -21,7 +24,8 @@ function Composer({
   submitLabel,
   initial = '',
   onSubmit,
-  disabled
+  disabled,
+  commands
 }: {
   placeholder: string
   hint: string
@@ -29,8 +33,24 @@ function Composer({
   initial?: string
   onSubmit: (text: string) => void
   disabled: boolean
+  commands: SlashCommandInfo[]
 }): React.JSX.Element {
   const [text, setText] = useState(initial)
+  const [selected, setSelected] = useState(0)
+  const [dismissed, setDismissed] = useState(false)
+  const query = slashQuery(text)
+  const matches = query === null || dismissed ? [] : filterCommands(commands, query)
+  const menuOpen = matches.length > 0
+  const active = Math.min(selected, matches.length - 1)
+  const activeItem = useRef<HTMLDivElement>(null)
+  // Keep the selection visible: after arrowing past either edge or after scrolling by hand
+  useEffect(() => {
+    activeItem.current?.scrollIntoView({ block: 'nearest' })
+  }, [active, query])
+  const choose = (command: SlashCommandInfo): void => {
+    setText(completeCommand(command))
+    setSelected(0)
+  }
   const submit = (): void => {
     if (disabled || text.trim() === '') return
     onSubmit(text.trim())
@@ -38,11 +58,56 @@ function Composer({
   }
   return (
     <>
+      {menuOpen && (
+        <div className="slash-menu" role="listbox" aria-label="Slash commands">
+          {matches.map((command, i) => (
+            <div
+              key={command.name}
+              ref={i === active ? activeItem : undefined}
+              role="option"
+              aria-selected={i === active}
+              tabIndex={-1}
+              className={`slash-item${i === active ? ' active' : ''}`}
+              // mousedown, so the textarea keeps focus
+              onMouseDown={(e) => {
+                e.preventDefault()
+                choose(command)
+              }}
+            >
+              <span className="slash-name">/{command.name}</span>
+              {command.argumentHint && <span className="slash-arg">{command.argumentHint}</span>}
+              <span className="slash-desc">{command.description}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <textarea
         placeholder={placeholder}
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value)
+          setSelected(0)
+          setDismissed(false)
+        }}
         onKeyDown={(e) => {
+          if (menuOpen) {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault()
+              const step = e.key === 'ArrowDown' ? 1 : -1
+              setSelected((active + step + matches.length) % matches.length)
+              return
+            }
+            if (e.key === 'Tab' || (e.key === 'Enter' && !e.ctrlKey && !e.metaKey)) {
+              e.preventDefault()
+              choose(matches[active])
+              return
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault()
+              setDismissed(true)
+              return
+            }
+          }
           if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault()
             submit()
@@ -97,11 +162,13 @@ function Item({ item, project }: { item: TranscriptItem; project: string }): Rea
 function Transcript({
   session,
   project,
-  readiness
+  readiness,
+  commands
 }: {
   session: AgentSession
   project: string
   readiness: Readiness
+  commands: SlashCommandInfo[]
 }) {
   const { state } = session
   const block = readinessBlockReason(readiness)
@@ -148,6 +215,7 @@ function Transcript({
               submitLabel="Send"
               onSubmit={session.send}
               disabled={block !== null}
+              commands={commands}
             />
           )}
         </div>
@@ -159,9 +227,12 @@ function Transcript({
 export function Session({ project, session, readiness, apiKey }: SessionProps): React.JSX.Element {
   const { state } = session
   const block = readinessBlockReason(readiness)
+  const commands = useSlashCommands()
 
   if (state.status !== 'idle' && project)
-    return <Transcript session={session} project={project} readiness={readiness} />
+    return (
+      <Transcript session={session} project={project} readiness={readiness} commands={commands} />
+    )
 
   const noKey = readiness.reason === 'no-key' || apiKey.hasKey === false
   return (
@@ -183,6 +254,7 @@ export function Session({ project, session, readiness, apiKey }: SessionProps): 
           initial={state.draft}
           onSubmit={session.start}
           disabled={block !== null}
+          commands={commands}
         />
       ) : project ? null : (
         <textarea disabled placeholder="Describe what you want built or changed" />
