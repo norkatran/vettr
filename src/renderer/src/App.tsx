@@ -1,5 +1,7 @@
 import { formatReview, pendingComments } from '@shared/comments'
 import { changedFileCount } from '@shared/diff'
+import { readinessBlockReason } from '@shared/readiness'
+import { sendReviewRound } from '@shared/reviewSend'
 import { otherTheme, parseThemeChoice, resolveTheme, type Theme } from '@shared/theme'
 import { useEffect, useRef, useState } from 'react'
 import { Changes } from './Changes'
@@ -11,7 +13,9 @@ import { SettingsView } from './SettingsView'
 import { Sidebar, type View } from './Sidebar'
 import { StatusBar } from './StatusBar'
 import { useAgentSession } from './useAgentSession'
+import { useApiKey } from './useApiKey'
 import { useChanges } from './useChanges'
+import { useReadiness } from './useReadiness'
 import { useReviewComments } from './useReviewComments'
 import { useSessionList } from './useSessionList'
 
@@ -65,6 +69,9 @@ export function App(): React.JSX.Element {
   const [statusRefresh, setStatusRefresh] = useState(0)
   const changes = useChanges(project)
   const count = changes.changes ? changedFileCount(changes.changes) : 0
+  const readiness = useReadiness()
+  const apiKey = useApiKey()
+  const agentBlock = readinessBlockReason(readiness)
   const session = useAgentSession(project)
   const sessions = useSessionList(project, `${session.state.status}:${session.state.sessionId}`)
   const review = useReviewComments(project, changes.changes)
@@ -72,26 +79,23 @@ export function App(): React.JSX.Element {
   const status = session.state.status
   const needsNewSession = status === 'idle' || status === 'ended'
   const sendBlocked =
-    status === 'running'
-      ? 'Wait for the agent to finish its current turn'
-      : needsNewSession && session.hasKey !== true
-        ? 'Add an API key or token in the Session view to start a session'
-        : null
+    agentBlock ?? (status === 'running' ? 'Wait for the agent to finish its current turn' : null)
   const sendReview = async (): Promise<void> => {
     const message = formatReview(pending)
-    // Record the tree before the agent touches it, so the next round can show what it changed
-    const baseline = project ? await window.vettr.snapshotTree(project) : null
-    review.markSent(
-      pending.map((c) => c.id),
-      baseline
-    )
-    setView('session')
-    // With no live session, the review becomes the prompt that starts a new one
-    if (needsNewSession) {
-      if (status === 'ended' && !session.state.sessionId) await session.newSession()
-      if (status === 'ended') session.send(message)
-      else session.start(message)
-    } else session.send(message)
+    const ids = pending.map((c) => c.id)
+    const error = await sendReviewRound({
+      // Record the tree before the agent touches it, so the next round can show what it changed
+      snapshot: () => (project ? window.vettr.snapshotTree(project) : Promise.resolve(null)),
+      // With no live session, the review becomes the prompt that starts a new one
+      deliver: async () => {
+        if (!needsNewSession) return session.send(message)
+        if (status === 'ended' && !session.state.sessionId) await session.newSession()
+        return status === 'ended' ? session.send(message) : session.start(message, false)
+      },
+      markSent: (baseline) => review.markSent(ids, baseline)
+    })
+    if (error) notify('Comments not sent', error)
+    else setView('session')
   }
 
   // Clicking the active view collapses the side panel, as in VS Code.
@@ -209,14 +213,15 @@ export function App(): React.JSX.Element {
           sessions={sessions}
         />
         {view === 'settings' ? (
-          <SettingsView />
+          <SettingsView apiKey={apiKey} />
         ) : view === 'session' ? (
-          <Session project={project} session={session} />
+          <Session project={project} session={session} readiness={readiness} apiKey={apiKey} />
         ) : (
           <Changes
             project={project}
             changes={changes}
             review={review}
+            agentBlock={agentBlock}
             send={{ pending: pending.length, run: () => void sendReview(), blocked: sendBlocked }}
           />
         )}

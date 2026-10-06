@@ -4,7 +4,14 @@ import { randomUUID } from 'node:crypto'
 import { lstat, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { buildRunArgs, SANDBOX_IMAGE } from '@shared/sandbox'
+import {
+  buildRunArgs,
+  CONTAINER_LABEL,
+  type DockerProblem,
+  OWNER_LABEL,
+  parseOrphanCandidates,
+  SANDBOX_IMAGE
+} from '@shared/sandbox'
 
 const run = promisify(execFile)
 
@@ -17,19 +24,31 @@ export type Spawn = (
   options: { stdio: 'pipe' }
 ) => ChildProcessWithoutNullStreams
 
-/** A user-facing problem with the Docker setup, or null when the sandbox can be started. */
-export async function checkDocker(exec: Exec): Promise<string | null> {
+/** What is wrong with the Docker setup, or null when the sandbox can be started. */
+export async function checkDockerDetailed(exec: Exec): Promise<DockerProblem | null> {
   try {
     await exec('docker', ['version', '--format', '{{.Server.Version}}'])
   } catch {
-    return 'Docker is not available. Install Docker and make sure its daemon is running and your user can use it.'
+    return {
+      kind: 'docker',
+      message:
+        'Docker is not available. Install Docker and make sure its daemon is running and your user can use it.'
+    }
   }
   try {
     await exec('docker', ['image', 'inspect', SANDBOX_IMAGE])
   } catch {
-    return `The sandbox image "${SANDBOX_IMAGE}" is missing. Build it with "npm run build:sandbox".`
+    return {
+      kind: 'image',
+      message: `The sandbox image "${SANDBOX_IMAGE}" is missing. Build it with "npm run build:sandbox".`
+    }
   }
   return null
+}
+
+/** A user-facing problem with the Docker setup, or null when the sandbox can be started. */
+export async function checkDocker(exec: Exec): Promise<string | null> {
+  return (await checkDockerDetailed(exec))?.message ?? null
 }
 
 /**
@@ -52,6 +71,8 @@ export async function readOnlyGitPaths(project: string): Promise<string[]> {
 
 export interface StartOptions {
   project: string
+  /** Pid of this app process, recorded on the container for the orphan sweep. */
+  ownerPid: number
   /** Host dir for the container's Claude config (see `transcriptsDir`); created if missing. */
   transcriptsDir: string
   spawn: Spawn
@@ -65,6 +86,7 @@ export interface StartOptions {
  */
 export async function startSandbox({
   project,
+  ownerPid,
   transcriptsDir,
   spawn,
   uid,
@@ -74,6 +96,7 @@ export async function startSandbox({
   await mkdir(transcriptsDir, { recursive: true })
   const args = buildRunArgs({
     name: `vettr-${randomUUID().slice(0, 8)}`,
+    ownerPid,
     project,
     readOnlyPaths: await readOnlyGitPaths(project),
     transcriptsDir,
@@ -86,4 +109,39 @@ export async function startSandbox({
 /** Ask the container to stop. `--init` forwards the signal, so the runner and SDK shut down. */
 export function stopSandbox(container: ChildProcessWithoutNullStreams): void {
   container.kill('SIGTERM')
+}
+
+/** Runs a command and resolves to its stdout. */
+export type ExecOutput = (file: string, args: string[]) => Promise<string>
+
+/**
+ * Remove vettr containers left behind by an app process that is gone (a crash or a kill, which
+ * `--rm` does not cover). Containers owned by a live process, such as another running vettr,
+ * are left alone. Resolves to how many were removed.
+ */
+export async function sweepOrphans(
+  exec: ExecOutput,
+  isAlive: (pid: number) => boolean
+): Promise<number> {
+  const listing = await exec('docker', [
+    'ps',
+    '-a',
+    '--filter',
+    `label=${CONTAINER_LABEL}`,
+    '--format',
+    `{{.ID}} {{.Label "${OWNER_LABEL}"}}`
+  ])
+  const orphans = parseOrphanCandidates(listing).filter(({ pid }) => pid === null || !isAlive(pid))
+  for (const { id } of orphans) await exec('docker', ['rm', '-f', id]).catch(() => undefined)
+  return orphans.length
+}
+
+/** Whether a process with this pid exists (signal 0 only checks; EPERM means it is someone else's). */
+export function isProcessAlive(pid: number, kill: typeof process.kill = process.kill): boolean {
+  try {
+    kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
+  }
 }

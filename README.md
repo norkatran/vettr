@@ -36,7 +36,8 @@ A VS Code-style command palette (Ctrl+Shift+P) covers everyday git: fetch, pull,
 
 - Agents run in a Docker sandbox with full permissions inside it, so there are no approval prompts to click through.
 - Git is read-only to the agent: `.git` is mounted read-only and no credentials enter the container.
-- Your API key is stored with the OS keychain via Electron `safeStorage` and passed to the sandbox over stdin, never through the environment or a file.
+- Your API key is stored with the OS keychain via Electron `safeStorage` and passed to the sandbox over stdin, never through the environment or a file. You can replace or remove it in Settings, and it is never shown again once saved.
+- The agent starts as soon as you open a project, so your first prompt does not wait for the sandbox. Until it is ready (or if Docker or a key is missing) the prompt and comment inputs are disabled, with the reason shown.
 
 Docker is required. Linux is the first supported platform.
 
@@ -44,7 +45,7 @@ Docker is required. Linux is the first supported platform.
 
 ```sh
 npm install
-npm run build:sandbox   # builds the vettr-sandbox Docker image (needs Docker)
+npm run build:sandbox   # builds the vettr-sandbox Docker image (needs Docker); the app also builds it on first run if it is missing
 npm run dev             # run with hot reload
 ```
 

@@ -1,10 +1,12 @@
 import { execFile, spawn } from 'node:child_process'
+import { access, readFile } from 'node:fs/promises'
 import { join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { getSessionMessages, listSessions as sdkListSessions } from '@anthropic-ai/claude-agent-sdk'
 import { buildEditorCommand } from '@shared/editor'
 import type { GitAction } from '@shared/gitActions'
 import { IpcChannel } from '@shared/ipc'
+import { SANDBOX_IMAGE } from '@shared/sandbox'
 import {
   app,
   BrowserWindow,
@@ -16,8 +18,10 @@ import {
   safeStorage
 } from 'electron'
 import icon from '../../branding/icons/vettr-app-icon-512.png?asset'
+import { AgentManager } from './agentManager'
 import { createApiKeyStore } from './apiKey'
 import { saveApiKey } from './apiKeyCheck'
+import { confirmIfBusy } from './busyGuard'
 import { attempt, ClaudeAdapter } from './claudeAdapter'
 import {
   commitStaged,
@@ -35,7 +39,15 @@ import {
   unstageFiles
 } from './git'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
-import { checkDocker, startSandbox, stopSandbox } from './sandbox'
+import {
+  checkDocker,
+  checkDockerDetailed,
+  isProcessAlive,
+  startSandbox,
+  stopSandbox,
+  sweepOrphans
+} from './sandbox'
+import { buildImageFromApp } from './sandboxImage'
 import { listProjectSessions, loadSession } from './sessions'
 import { getSettings, loadSettings, updateSettings } from './settingsStore'
 import { transcriptsDir } from './transcripts'
@@ -52,6 +64,7 @@ const agent = new ClaudeAdapter({
   startSandbox: (project) =>
     startSandbox({
       project,
+      ownerPid: process.pid,
       transcriptsDir: transcriptsDir(app.getPath('userData'), project),
       spawn,
       // Linux first, so these exist; the container runs as the host user
@@ -64,6 +77,28 @@ const agent = new ClaudeAdapter({
 agent.onEvent((event) => {
   for (const win of BrowserWindow.getAllWindows())
     win.webContents.send(IpcChannel.agentEvent, event)
+})
+const agentManager = new AgentManager({
+  agent,
+  checkDocker: () => checkDockerDetailed((file, args) => exec(file, args)),
+  buildImage: (onProgress) =>
+    buildImageFromApp({
+      spawn,
+      appPath: app.getAppPath(),
+      image: SANDBOX_IMAGE,
+      exists: (path) =>
+        access(path).then(
+          () => true,
+          () => false
+        ),
+      readFile: (path) => readFile(path, 'utf8'),
+      onProgress
+    }),
+  hasKey: async () => (await apiKeys.get()) !== null
+})
+agentManager.onReadiness((readiness) => {
+  for (const win of BrowserWindow.getAllWindows())
+    win.webContents.send(IpcChannel.readiness, readiness)
 })
 
 function createWindow(): void {
@@ -99,8 +134,8 @@ async function watchProject(path: string): Promise<void> {
 }
 
 function activateProject(win: BrowserWindow | undefined, path: string): void {
-  // A session belongs to one project's container
-  void agent.stop()
+  // The manager tears the old project's agent down and prewarms one for this project
+  void agentManager.setProject(path).catch(() => undefined)
   setCurrentProject(path)
   void watchProject(path)
   buildMenu()
@@ -115,6 +150,9 @@ function activateProject(win: BrowserWindow | undefined, path: string): void {
 async function openProjectAt(win: BrowserWindow | undefined, path: string): Promise<void> {
   const root = await findRepoRoot(path)
   if (root) {
+    if (root !== getProjectState().current && agentManager.isBusy && !(await confirmSwitch(win))) {
+      return
+    }
     activateProject(win, root)
     return
   }
@@ -125,6 +163,31 @@ async function openProjectAt(win: BrowserWindow | undefined, path: string): Prom
   const options = { type: 'error' as const, message, detail }
   await (win ? dialog.showMessageBox(win, options) : dialog.showMessageBox(options))
 }
+
+/** Ask before stopping an agent that is working, since its work in progress is lost. */
+async function confirmStop(
+  win: BrowserWindow | undefined,
+  detail: string,
+  confirmLabel: string
+): Promise<boolean> {
+  const options = {
+    type: 'warning' as const,
+    message: 'The agent is still working.',
+    detail,
+    buttons: [confirmLabel, 'Cancel'],
+    defaultId: 1,
+    cancelId: 1
+  }
+  const result = await (win ? dialog.showMessageBox(win, options) : dialog.showMessageBox(options))
+  return result.response === 0
+}
+
+const confirmSwitch = (win: BrowserWindow | undefined): Promise<boolean> =>
+  confirmStop(
+    win,
+    'Opening another project stops it and the work in progress is lost.',
+    'Open project'
+  )
 
 async function openProject(win: BrowserWindow | undefined): Promise<void> {
   const options: OpenDialogOptions = { properties: ['openDirectory'] }
@@ -202,13 +265,15 @@ void app.whenReady().then(async () => {
     attempt(async () => {
       const project = getProjectState().current
       if (!project) throw new Error('Open a project first')
-      await agent.start(prompt, project, resume)
+      await agentManager.start(prompt, resume)
     })
   )
   ipcMain.handle(IpcChannel.agentSend, (_event, message: string) =>
-    attempt(() => agent.send(message))
+    attempt(() => agentManager.send(message))
   )
-  ipcMain.handle(IpcChannel.agentInterrupt, () => attempt(() => agent.interrupt()).then(() => {}))
+  ipcMain.handle(IpcChannel.agentInterrupt, () =>
+    attempt(() => agentManager.interrupt()).then(() => {})
+  )
   ipcMain.handle(IpcChannel.listSessions, async () => {
     const project = getProjectState().current
     if (!project) return []
@@ -228,7 +293,8 @@ void app.whenReady().then(async () => {
       id
     )
   })
-  ipcMain.handle(IpcChannel.agentStop, () => agent.stop())
+  ipcMain.handle(IpcChannel.agentStop, () => agentManager.newSession())
+  ipcMain.handle(IpcChannel.getReadiness, () => agentManager.readiness)
   ipcMain.handle(
     IpcChannel.openInEditor,
     async (_event, project: string, path: string, line: number) => {
@@ -261,11 +327,52 @@ void app.whenReady().then(async () => {
   ipcMain.handle(IpcChannel.getSettings, () => getSettings())
   ipcMain.handle(IpcChannel.setSettings, (_event, next: unknown) => updateSettings(next))
   ipcMain.handle(IpcChannel.hasApiKey, async () => (await apiKeys.get()) !== null)
-  ipcMain.handle(IpcChannel.setApiKey, (_event, key: string) =>
-    attempt(() => saveApiKey(apiKeys, key, (url, init) => fetch(url, init)))
+  ipcMain.handle(IpcChannel.setApiKey, (event, key: string) =>
+    attempt(async () => {
+      const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
+      await saveApiKey(
+        apiKeys,
+        key,
+        (url, init) => fetch(url, init),
+        () =>
+          confirmIfBusy(agentManager.isBusy, () =>
+            confirmStop(
+              win,
+              'Saving a new key restarts the agent, and the work in progress is lost.',
+              'Save key'
+            )
+          )
+      )
+      // Always restart the agent with the new credential
+      void agentManager.keyChanged().catch(() => undefined)
+    })
+  )
+  ipcMain.handle(IpcChannel.clearApiKey, (event) =>
+    attempt(async () => {
+      const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
+      await confirmIfBusy(agentManager.isBusy, () =>
+        confirmStop(
+          win,
+          'Removing the key stops the agent, and the work in progress is lost.',
+          'Remove key'
+        )
+      )
+      await apiKeys.clear()
+      // With no key the agent stops and inputs that direct it are disabled
+      void agentManager.keyChanged().catch(() => undefined)
+    })
   )
   buildMenu()
-  if (getProjectState().current) void watchProject(getProjectState().current as string)
+  // Containers left by an earlier run that died are removed in the background; ours carry this
+  // process's pid, so this is safe to run alongside the first prewarm
+  void sweepOrphans(async (file, args) => (await exec(file, args)).stdout, isProcessAlive).catch(
+    () => 0
+  )
+  const launchProject = getProjectState().current
+  if (launchProject) {
+    void watchProject(launchProject)
+    void agentManager.setProject(launchProject).catch(() => undefined)
+  }
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -273,7 +380,7 @@ void app.whenReady().then(async () => {
 })
 
 app.on('will-quit', () => {
-  void agent.stop()
+  void agentManager.shutdown().catch(() => undefined)
 })
 
 app.on('window-all-closed', () => {

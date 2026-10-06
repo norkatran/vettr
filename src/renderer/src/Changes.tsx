@@ -23,11 +23,19 @@ interface ChangesProps {
   project: string | null
   changes: ChangesState
   review: Review
+  /** Why comments cannot be written or saved (the agent is not ready), or null. */
+  agentBlock: string | null
   /** Send the unsent comments to the agent; null when that is not possible, with the reason. */
   send: { pending: number; run: () => void; blocked: string | null }
 }
 
-export function Changes({ project, changes, review, send }: ChangesProps): React.JSX.Element {
+export function Changes({
+  project,
+  changes,
+  review,
+  agentBlock,
+  send
+}: ChangesProps): React.JSX.Element {
   const [mode, setMode] = useState<DiffMode>('unified')
   const notify = useNotify()
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -53,17 +61,22 @@ export function Changes({ project, changes, review, send }: ChangesProps): React
   const showSince = scope === 'since' && review.baseline !== null
   const ui: CommentUi = {
     readOnly: showSince,
+    locked: agentBlock,
     comments: review.comments,
     draft,
-    pick: (file, isStaged, side, no, shift) =>
+    pick: (file, isStaged, side, no, shift) => {
+      if (agentBlock) return
       setDraft((prev) => {
         const extend =
           shift && prev && prev.file === file && prev.staged === isStaged && prev.side === side
         const anchor = extend ? prev.anchor : no
         const [start, end] = rangeOf(anchor, no)
         return { file, staged: isStaged, side, anchor, start, end }
-      }),
+      })
+    },
     save: (text) => {
+      // The draft is kept while the agent is not ready, so nothing typed is lost
+      if (agentBlock) return
       const target = draft && (draft.staged ? staged : unstaged).find((f) => f.path === draft.file)
       if (draft && target) {
         review.add({
@@ -79,8 +92,12 @@ export function Changes({ project, changes, review, send }: ChangesProps): React
       setDraft(null)
     },
     cancel: () => setDraft(null),
-    edit: review.edit,
-    remove: review.remove
+    edit: (id, text) => {
+      if (!agentBlock) review.edit(id, text)
+    },
+    remove: (id) => {
+      if (!agentBlock) review.remove(id)
+    }
   }
 
   return (
@@ -401,11 +418,7 @@ function HunkRows({
 function Code({ line, html }: { line: DiffLine; html: Map<DiffLine, string> }) {
   const markup = html.get(line)
   // highlight.js escapes the source text, so the markup contains only its own token spans.
-  return markup === undefined ? (
-    <>{line.text}</>
-  ) : (
-    <span dangerouslySetInnerHTML={{ __html: markup }} />
-  )
+  return markup === undefined ? line.text : <span dangerouslySetInnerHTML={{ __html: markup }} />
 }
 
 const SIGN = { context: ' ', add: '+', del: '-' } as const
@@ -429,6 +442,13 @@ function NumberCell({
   const no = side === 'old' ? line.oldNo : line.newNo
   if (no === null) return <td className="num" />
   if (ui.readOnly) return <td className={`num ${className}`}>{no}</td>
+  if (ui.locked) {
+    return (
+      <td className={`num ${className}`} title={ui.locked}>
+        {no}
+      </td>
+    )
+  }
   const selected = isSelected(ui.draft, file, staged, side, no)
   return (
     <td className={`num ${className} ${selected ? 'selected' : ''}`}>

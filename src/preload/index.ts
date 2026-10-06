@@ -1,5 +1,6 @@
 import type { AgentEvent } from '@shared/agent'
 import { IpcChannel, type VettrApi } from '@shared/ipc'
+import type { Readiness } from '@shared/readiness'
 import { contextBridge, type IpcRendererEvent, ipcRenderer } from 'electron'
 
 const api: VettrApi = {
@@ -37,8 +38,15 @@ const api: VettrApi = {
     ipcRenderer.on(IpcChannel.agentEvent, listener)
     return () => ipcRenderer.removeListener(IpcChannel.agentEvent, listener)
   },
+  getReadiness: () => ipcRenderer.invoke(IpcChannel.getReadiness),
+  onReadiness: (callback) => {
+    const listener = (_event: IpcRendererEvent, readiness: Readiness): void => callback(readiness)
+    ipcRenderer.on(IpcChannel.readiness, listener)
+    return () => ipcRenderer.removeListener(IpcChannel.readiness, listener)
+  },
   hasApiKey: () => ipcRenderer.invoke(IpcChannel.hasApiKey),
   setApiKey: (key) => ipcRenderer.invoke(IpcChannel.setApiKey, key),
+  clearApiKey: () => ipcRenderer.invoke(IpcChannel.clearApiKey),
   openInEditor: (project, path, line) =>
     ipcRenderer.invoke(IpcChannel.openInEditor, project, path, line),
   getSettings: () => ipcRenderer.invoke(IpcChannel.getSettings),

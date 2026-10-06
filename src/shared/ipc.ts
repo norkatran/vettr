@@ -1,6 +1,7 @@
 import type { AgentEvent } from './agent'
 import type { FileChange, RepoChanges } from './diff'
 import type { Branch, GitAction } from './gitActions'
+import type { Readiness } from './readiness'
 import type { RepoStatus } from './repoStatus'
 import type { SessionState } from './session'
 import type { SessionInfo } from './sessions'
@@ -46,6 +47,10 @@ export interface VettrApi {
    * to a message for the user (Docker missing, no API key, ...).
    */
   agentStart(prompt: string, resume?: string): Promise<string | null>
+  /** The agent's current readiness; inputs that direct the agent are enabled only when `ready`. */
+  getReadiness(): Promise<Readiness>
+  /** Subscribe to readiness changes; returns an unsubscribe function. */
+  onReadiness(callback: (readiness: Readiness) => void): () => void
   /** Send a follow-up in the running session; resolves to null or an error message. */
   agentSend(message: string): Promise<string | null>
   agentInterrupt(): Promise<void>
@@ -61,6 +66,8 @@ export interface VettrApi {
   hasApiKey(): Promise<boolean>
   /** Save the API key (encrypted on the host); resolves to null or an error message. */
   setApiKey(key: string): Promise<string | null>
+  /** Remove the saved key and stop the agent; resolves to null or an error message. */
+  clearApiKey(): Promise<string | null>
   /** Open a project file in the user's editor at `line`; resolves to null or a message for the user. */
   openInEditor(project: string, path: string, line: number): Promise<string | null>
   getSettings(): Promise<Settings>
@@ -89,10 +96,13 @@ export const IpcChannel = {
   agentInterrupt: 'agent:interrupt',
   agentStop: 'agent:stop',
   agentEvent: 'agent:event',
+  getReadiness: 'agent:readiness',
+  readiness: 'agent:readystate',
   listSessions: 'agent:sessions',
   loadSession: 'agent:session',
   hasApiKey: 'apikey:status',
   setApiKey: 'apikey:set',
+  clearApiKey: 'apikey:clear',
   openInEditor: 'editor:open',
   getSettings: 'settings:get',
   setSettings: 'settings:set'

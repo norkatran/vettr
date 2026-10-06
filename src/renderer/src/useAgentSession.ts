@@ -1,19 +1,20 @@
 import { initialSession, type SessionState, sessionReducer } from '@shared/session'
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef } from 'react'
 
 export interface AgentSession {
   state: SessionState
-  /** Whether an API key is saved; null until that is known. */
-  hasKey: boolean | null
-  start(prompt: string): void
-  send(message: string): void
+  /** Resolve to null once the agent has taken the prompt, or to an error message. */
+  /**
+   * Start a session with a prompt. If it fails the prompt is put back in the input, unless
+   * `restoreDraft` is false (a review, whose comments stay pending and are sent again instead).
+   */
+  start(prompt: string, restoreDraft?: boolean): Promise<string | null>
+  send(message: string): Promise<string | null>
   interrupt(): void
   /** Stop the running session, if any, and return to the prompt. */
   newSession(): Promise<void>
   /** Replace the current session with a stored one and rewrite the transcript. */
   openSession(id: string): Promise<void>
-  /** Resolves to null once saved, or to an error message. */
-  saveKey(key: string): Promise<string | null>
 }
 
 /**
@@ -27,12 +28,8 @@ export function useAgentSession(project: string | null): AgentSession {
   stateRef.current = state
   // Set while the shown session has no live agent: a stored session or one whose agent exited.
   const resumeId = useRef<string | null>(null)
-  const [hasKey, setHasKey] = useState<boolean | null>(null)
 
   useEffect(() => window.vettr.onAgentEvent((event) => dispatch({ type: 'event', event })), [])
-  useEffect(() => {
-    void window.vettr.hasApiKey().then(setHasKey)
-  }, [])
   useEffect(() => {
     if (state.status === 'ended' && state.sessionId) resumeId.current = state.sessionId
   }, [state.status, state.sessionId])
@@ -41,30 +38,27 @@ export function useAgentSession(project: string | null): AgentSession {
     dispatch({ type: 'reset' })
   }, [project])
 
-  const start = useCallback((prompt: string) => {
+  const start = useCallback(async (prompt: string, restoreDraft = true) => {
     dispatch({ type: 'sent', text: prompt })
-    void window.vettr.agentStart(prompt).then((message) => {
-      if (message) dispatch({ type: 'start-failed', message, prompt })
-    })
+    const message = await window.vettr.agentStart(prompt)
+    if (message) dispatch({ type: 'start-failed', message, prompt: restoreDraft ? prompt : '' })
+    return message
   }, [])
 
-  const send = useCallback((message: string) => {
+  const send = useCallback(async (message: string) => {
     const id = resumeId.current
     if (id) {
       dispatch({ type: 'resumed', text: message })
-      void window.vettr
-        .agentStop()
-        .then(() => window.vettr.agentStart(message, id))
-        .then((error) => {
-          if (error) dispatch({ type: 'send-failed', message: error })
-          else if (resumeId.current === id) resumeId.current = null
-        })
-      return
+      // The main process restarts the agent to resume, so no stop is needed first
+      const error = await window.vettr.agentStart(message, id)
+      if (error) dispatch({ type: 'send-failed', message: error })
+      else if (resumeId.current === id) resumeId.current = null
+      return error
     }
     dispatch({ type: 'sent', text: message })
-    void window.vettr.agentSend(message).then((error) => {
-      if (error) dispatch({ type: 'send-failed', message: error })
-    })
+    const error = await window.vettr.agentSend(message)
+    if (error) dispatch({ type: 'send-failed', message: error })
+    return error
   }, [])
 
   const interrupt = useCallback(() => {
@@ -82,16 +76,9 @@ export function useAgentSession(project: string | null): AgentSession {
     if (stateRef.current.status === 'running') return
     const loaded = await window.vettr.loadSession(id)
     if (!loaded) return
-    await window.vettr.agentStop()
     resumeId.current = loaded.sessionId ?? id
     dispatch({ type: 'load', state: loaded })
   }, [])
 
-  const saveKey = useCallback(async (key: string) => {
-    const error = await window.vettr.setApiKey(key)
-    if (!error) setHasKey(true)
-    return error
-  }, [])
-
-  return { state, hasKey, start, send, interrupt, newSession, openSession, saveKey }
+  return { state, start, send, interrupt, newSession, openSession }
 }

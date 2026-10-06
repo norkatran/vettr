@@ -13,7 +13,9 @@ export type AgentEvent =
 
 /** Adapter between the app and a concrete agent (the first one wraps the Claude Agent SDK). */
 export interface AgentAdapter {
-  /** Begin a session in `cwd` with the first prompt, optionally resuming SDK session `resume`. */
+  /** Prewarm an idle agent for `cwd` (optionally resuming `resume`) so `start` is fast. */
+  warm(cwd: string, resume?: string): Promise<void>
+  /** Begin a session in `cwd` with the first prompt (using the warm agent when one matches), optionally resuming SDK session `resume`. */
   start(prompt: string, cwd: string, resume?: string): Promise<void>
   /** Send a follow-up in the same session, including batched review comments. */
   send(message: string): Promise<void>

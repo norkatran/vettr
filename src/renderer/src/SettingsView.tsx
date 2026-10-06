@@ -1,10 +1,93 @@
 import { defaultSettings, EDITOR_PRESETS, matchPreset, type Settings } from '@shared/settings'
 import { useEffect, useState } from 'react'
+import { ApiKeyForm } from './ApiKeyForm'
+import type { ApiKey } from './useApiKey'
 
 const CUSTOM = '__custom__'
 const NONE = ''
 
-export function SettingsView(): React.JSX.Element {
+/**
+ * The saved key or token, managed here. Its value is never shown once saved: the user can only
+ * replace it or remove it.
+ */
+function ApiKeySetting({ apiKey }: { apiKey: ApiKey }): React.JSX.Element | null {
+  const [changing, setChanging] = useState(false)
+  const [confirmingRemove, setConfirmingRemove] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  if (apiKey.hasKey === null) return null
+
+  if (!apiKey.hasKey) {
+    return (
+      <div className="settings-field">
+        <ApiKeyForm
+          onSave={apiKey.save}
+          explanation="No key or token is saved, so the agent cannot start."
+        />
+      </div>
+    )
+  }
+  if (changing) {
+    return (
+      <div className="settings-field">
+        <ApiKeyForm
+          saveLabel="Replace"
+          onSave={async (key) => {
+            const failure = await apiKey.save(key)
+            if (!failure) setChanging(false)
+            return failure
+          }}
+          onCancel={() => setChanging(false)}
+        />
+      </div>
+    )
+  }
+  return (
+    <div className="settings-field">
+      <span className="settings-label">Anthropic API key or Claude OAuth token</span>
+      <p className="hint">
+        A key or token is saved. For security it is not shown again; replace it or remove it.
+      </p>
+      <div className="key-row">
+        <button
+          type="button"
+          title="Saving a new key restarts the agent, which ends any session in progress"
+          onClick={() => setChanging(true)}
+        >
+          Change
+        </button>
+        {confirmingRemove ? (
+          <>
+            <button
+              type="button"
+              title="Stops the agent, ending any session in progress"
+              onClick={() => {
+                setConfirmingRemove(false)
+                void apiKey.clear().then(setError)
+              }}
+            >
+              Confirm remove
+            </button>
+            <button type="button" className="secondary" onClick={() => setConfirmingRemove(false)}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="secondary"
+            title="Removing the key stops the agent"
+            onClick={() => setConfirmingRemove(true)}
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      {error && <p className="error-text">{error}</p>}
+    </div>
+  )
+}
+
+export function SettingsView({ apiKey }: { apiKey: ApiKey }): React.JSX.Element {
   const [settings, setSettings] = useState<Settings | null>(null)
   // Picking "Custom" with an empty command has no value to infer it from, so remember it
   const [custom, setCustom] = useState(false)
@@ -32,6 +115,7 @@ export function SettingsView(): React.JSX.Element {
   return (
     <main className="settings">
       <h1>Settings</h1>
+      <ApiKeySetting apiKey={apiKey} />
       <div className="settings-field">
         <label htmlFor="editor-preset">External editor</label>
         <select id="editor-preset" value={selected} onChange={(e) => choose(e.target.value)}>

@@ -4,7 +4,15 @@ import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { checkDocker, readOnlyGitPaths, startSandbox, stopSandbox } from './sandbox'
+import {
+  checkDocker,
+  checkDockerDetailed,
+  isProcessAlive,
+  readOnlyGitPaths,
+  startSandbox,
+  stopSandbox,
+  sweepOrphans
+} from './sandbox'
 
 let root = ''
 beforeEach(() => {
@@ -69,7 +77,9 @@ describe('startSandbox', () => {
     const transcriptsDir = join(root, 'data', 'transcripts')
     const child = {} as ChildProcessWithoutNullStreams
     const spawn = vi.fn().mockReturnValue(child)
-    expect(await startSandbox({ project: root, transcriptsDir, spawn, uid: 1, gid: 2 })).toBe(child)
+    expect(
+      await startSandbox({ project: root, ownerPid: 7, transcriptsDir, spawn, uid: 1, gid: 2 })
+    ).toBe(child)
     const [file, args, options] = spawn.mock.calls[0]
     expect(file).toBe('docker')
     expect(options).toEqual({ stdio: 'pipe' })
@@ -87,5 +97,60 @@ describe('stopSandbox', () => {
     const kill = vi.fn()
     stopSandbox({ kill } as unknown as ChildProcessWithoutNullStreams)
     expect(kill).toHaveBeenCalledWith('SIGTERM')
+  })
+})
+
+describe('sweepOrphans', () => {
+  const listing = 'dead1 100\nlive1 200\nnopid\n'
+
+  it('removes labelled containers whose owner is gone and keeps live ones', async () => {
+    const exec = vi.fn().mockResolvedValueOnce(listing).mockResolvedValue('')
+    const removed = await sweepOrphans(exec, (pid) => pid === 200)
+    expect(removed).toBe(2)
+    expect(exec.mock.calls[0]?.[1]).toContain('label=vettr.app=1')
+    expect(exec).toHaveBeenCalledWith('docker', ['rm', '-f', 'dead1'])
+    expect(exec).toHaveBeenCalledWith('docker', ['rm', '-f', 'nopid'])
+    expect(exec).not.toHaveBeenCalledWith('docker', ['rm', '-f', 'live1'])
+  })
+
+  it('keeps going when one removal fails', async () => {
+    const exec = vi
+      .fn()
+      .mockResolvedValueOnce('a 1\nb 2\n')
+      .mockRejectedValueOnce(new Error('gone'))
+      .mockResolvedValue('')
+    expect(await sweepOrphans(exec, () => false)).toBe(2)
+    expect(exec).toHaveBeenCalledWith('docker', ['rm', '-f', 'b'])
+  })
+
+  it('does nothing when there are no containers', async () => {
+    const exec = vi.fn().mockResolvedValue('\n')
+    expect(await sweepOrphans(exec, () => false)).toBe(0)
+    expect(exec).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('isProcessAlive', () => {
+  it('is true when the signal is delivered', () => {
+    expect(isProcessAlive(1, vi.fn() as unknown as typeof process.kill)).toBe(true)
+  })
+
+  it('is true when permission is denied, false when there is no such process', () => {
+    const fail = (code: string) =>
+      (() => {
+        throw Object.assign(new Error(code), { code })
+      }) as unknown as typeof process.kill
+    expect(isProcessAlive(1, fail('EPERM'))).toBe(true)
+    expect(isProcessAlive(1, fail('ESRCH'))).toBe(false)
+  })
+})
+
+describe('checkDockerDetailed', () => {
+  it('tells a missing daemon from a missing image', async () => {
+    const noDaemon = vi.fn().mockRejectedValue(new Error('no'))
+    expect((await checkDockerDetailed(noDaemon))?.kind).toBe('docker')
+    const noImage = vi.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('no'))
+    expect((await checkDockerDetailed(noImage))?.kind).toBe('image')
+    expect(await checkDockerDetailed(vi.fn().mockResolvedValue({}))).toBeNull()
   })
 })

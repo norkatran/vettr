@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildRunArgs, SANDBOX_IMAGE } from './sandbox'
+import { buildRunArgs, parseOrphanCandidates, SANDBOX_IMAGE } from './sandbox'
 
 const base = {
   name: 'c1',
+  ownerPid: 4242,
   project: '/work/p',
   readOnlyPaths: [],
   transcriptsDir: '/data/t',
@@ -46,6 +47,24 @@ describe('buildRunArgs', () => {
       '/work/p:/work/p',
       '/work/p/.git:/work/p/.git:ro',
       '/main/.git/worktrees/x:/main/.git/worktrees/x:ro'
+    ])
+  })
+})
+
+describe('container labels', () => {
+  it('labels the container with the app and its owner pid', () => {
+    const args = buildRunArgs(base)
+    const labels = args.filter((_, i) => args[i - 1] === '--label')
+    expect(labels).toEqual(['vettr.app=1', 'vettr.pid=4242'])
+  })
+})
+
+describe('parseOrphanCandidates', () => {
+  it('reads ids with their owner pid, tolerating a missing or bad pid', () => {
+    expect(parseOrphanCandidates('abc 12\ndef\n\nghi x\n')).toEqual([
+      { id: 'abc', pid: 12 },
+      { id: 'def', pid: null },
+      { id: 'ghi', pid: null }
     ])
   })
 })

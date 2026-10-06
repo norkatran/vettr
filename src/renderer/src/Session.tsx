@@ -1,10 +1,15 @@
+import { type Readiness, readinessBlockReason } from '@shared/readiness'
 import { describeTool, relativePath, type TranscriptItem } from '@shared/session'
 import { useEffect, useRef, useState } from 'react'
+import { ApiKeyForm } from './ApiKeyForm'
 import type { AgentSession } from './useAgentSession'
+import type { ApiKey } from './useApiKey'
 
 interface SessionProps {
   project: string | null
   session: AgentSession
+  readiness: Readiness
+  apiKey: ApiKey
 }
 
 const TOOL_ICON = { running: '…', done: '✓', error: '✗', stopped: '–' } as const
@@ -56,57 +61,6 @@ function Composer({
   )
 }
 
-function ApiKeyForm({
-  onSave,
-  onCancel
-}: {
-  onSave: (key: string) => Promise<string | null>
-  onCancel?: () => void
-}): React.JSX.Element {
-  const [key, setKey] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  return (
-    <form
-      className="key-form"
-      onSubmit={(e) => {
-        e.preventDefault()
-        setSaving(true)
-        void onSave(key.trim()).then((message) => {
-          setError(message)
-          setSaving(false)
-        })
-      }}
-    >
-      <label htmlFor="api-key">Anthropic API key or Claude OAuth token</label>
-      <div className="key-row">
-        <input
-          id="api-key"
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="sk-ant-api03-... or sk-ant-oat01-..."
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-        />
-        <button type="submit" disabled={saving || key.trim() === ''}>
-          Save
-        </button>
-        {onCancel && (
-          <button type="button" className="secondary" onClick={onCancel}>
-            Cancel
-          </button>
-        )}
-      </div>
-      <p className="hint">
-        Stored encrypted on this computer and sent to the sandbox when a session starts. Run{' '}
-        <code>claude setup-token</code> to get an OAuth token.
-      </p>
-      {error && <p className="error-text">{error}</p>}
-    </form>
-  )
-}
-
 function Item({ item, project }: { item: TranscriptItem; project: string }): React.JSX.Element {
   switch (item.kind) {
     case 'user':
@@ -140,8 +94,17 @@ function Item({ item, project }: { item: TranscriptItem; project: string }): Rea
   }
 }
 
-function Transcript({ session, project }: { session: AgentSession; project: string }) {
+function Transcript({
+  session,
+  project,
+  readiness
+}: {
+  session: AgentSession
+  project: string
+  readiness: Readiness
+}) {
   const { state } = session
+  const block = readinessBlockReason(readiness)
   const end = useRef<HTMLDivElement>(null)
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' })
@@ -181,10 +144,10 @@ function Transcript({ session, project }: { session: AgentSession; project: stri
                   ? 'The agent exited. Send a message to resume this session'
                   : 'Send a follow-up'
               }
-              hint="Ctrl+Enter to send"
+              hint={block ?? 'Ctrl+Enter to send'}
               submitLabel="Send"
               onSubmit={session.send}
-              disabled={false}
+              disabled={block !== null}
             />
           )}
         </div>
@@ -193,44 +156,36 @@ function Transcript({ session, project }: { session: AgentSession; project: stri
   )
 }
 
-export function Session({ project, session }: SessionProps): React.JSX.Element {
-  const { state, hasKey } = session
-  const [editingKey, setEditingKey] = useState(false)
+export function Session({ project, session, readiness, apiKey }: SessionProps): React.JSX.Element {
+  const { state } = session
+  const block = readinessBlockReason(readiness)
 
-  if (state.status !== 'idle' && project) return <Transcript session={session} project={project} />
+  if (state.status !== 'idle' && project)
+    return <Transcript session={session} project={project} readiness={readiness} />
 
-  const needKey = hasKey === false || editingKey
+  const noKey = readiness.reason === 'no-key' || apiKey.hasKey === false
   return (
     <main className="session">
       <h1>{project ? 'What should the agent do?' : 'Open a project to get started'}</h1>
       {!project && <p className="hint">Use File &gt; Open Project (Ctrl+O).</p>}
-      {project && needKey && (
+      {project && noKey && (
         <ApiKeyForm
-          onSave={async (key) => {
-            const error = await session.saveKey(key)
-            if (!error) setEditingKey(false)
-            return error
-          }}
-          onCancel={editingKey ? () => setEditingKey(false) : undefined}
+          onSave={apiKey.save}
+          explanation="The agent needs a key or token before you can write a prompt. You can change or remove it later in Settings."
         />
       )}
       {state.startError && <p className="error-text">{state.startError}</p>}
-      {project ? (
+      {project && !noKey ? (
         <Composer
           placeholder="Describe what you want built or changed"
-          hint="Ctrl+Enter to start"
+          hint={block ?? 'Ctrl+Enter to start'}
           submitLabel="Start"
           initial={state.draft}
           onSubmit={session.start}
-          disabled={hasKey !== true}
+          disabled={block !== null}
         />
-      ) : (
+      ) : project ? null : (
         <textarea disabled placeholder="Describe what you want built or changed" />
-      )}
-      {project && hasKey && !editingKey && (
-        <button type="button" className="link" onClick={() => setEditingKey(true)}>
-          Change API key or token
-        </button>
       )}
     </main>
   )

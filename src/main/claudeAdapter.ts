@@ -25,6 +25,11 @@ export class ClaudeAdapter implements AgentAdapter {
   private readonly listeners = new Set<(event: AgentEvent) => void>()
   private container: ChildProcessWithoutNullStreams | null = null
   private starting = false
+  /** Set once the first prompt has gone to the current container; before that it is warm. */
+  private active = false
+  private warmCwd: string | null = null
+  private warmResume: string | undefined
+  private warming: Promise<void> | null = null
   private closed: Promise<void> = Promise.resolve()
   /** Set by stop() so the resulting exit is not reported as a failure. */
   private stopRequested = false
@@ -36,7 +41,42 @@ export class ClaudeAdapter implements AgentAdapter {
     return () => this.listeners.delete(listener)
   }
 
+  /**
+   * Prewarm: start the container and its idle query without a prompt, so the first prompt does
+   * not wait for the container. A no-op when a matching warm agent already exists.
+   */
+  async warm(cwd: string, resume?: string): Promise<void> {
+    if (this.container && !this.active && this.warmCwd === cwd && this.warmResume === resume) return
+    // Join a prewarm already in progress rather than racing it
+    if (this.warming) return this.warming
+    const launching = this.launch(cwd, resume)
+    this.warming = launching
+    try {
+      await launching
+    } finally {
+      this.warming = null
+    }
+  }
+
   async start(prompt: string, cwd: string, resume?: string): Promise<void> {
+    // A prewarm in progress is waited for; its failure is reported by launching again below
+    if (this.warming) await this.warming.catch(() => undefined)
+    if (this.container && !this.active) {
+      if (this.warmCwd === cwd && this.warmResume === resume) {
+        this.active = true
+        this.write({ type: 'prompt', text: prompt })
+        return
+      }
+      // A warm agent for another project, or one that must resume a stored session
+      await this.stop()
+    }
+    await this.launch(cwd, resume)
+    this.active = true
+    this.write({ type: 'prompt', text: prompt })
+  }
+
+  /** Start the container and send `init`, leaving the agent warm and idle. */
+  private async launch(cwd: string, resume?: string): Promise<void> {
     // Claim the slot before the first await so two concurrent starts cannot both proceed
     if (this.container || this.starting) throw new Error('A session is already running')
     this.starting = true
@@ -49,10 +89,12 @@ export class ClaudeAdapter implements AgentAdapter {
       }
       const container = await this.deps.startSandbox(cwd)
       this.container = container
+      this.active = false
+      this.warmCwd = cwd
+      this.warmResume = resume
       this.stopRequested = false
       this.watch(container)
       this.write({ type: 'init', credential, cwd, ...(resume ? { resume } : {}) })
-      this.write({ type: 'prompt', text: prompt })
     } finally {
       this.starting = false
     }
@@ -112,6 +154,9 @@ export class ClaudeAdapter implements AgentAdapter {
         if (finished) return
         finished = true
         this.container = null
+        this.active = false
+        this.warmCwd = null
+        this.warmResume = undefined
         const message =
           failure ??
           (!this.stopRequested && !sawError && code !== 0

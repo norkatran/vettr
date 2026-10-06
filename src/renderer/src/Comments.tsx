@@ -15,6 +15,8 @@ export interface Draft {
 export interface CommentUi {
   /** True in views that cannot take comments (the diff since the last review). */
   readOnly: boolean
+  /** Why comments cannot be written or saved right now (the agent is not ready), or null. */
+  locked: string | null
   comments: ReviewComment[]
   draft: Draft | null
   /** A line number was clicked (shift extends the current selection). */
@@ -52,16 +54,18 @@ function Editor({
   initial,
   label,
   onSave,
-  onCancel
+  onCancel,
+  locked
 }: {
   initial: string
   label: string
   onSave: (text: string) => void
   onCancel: () => void
+  locked: string | null
 }): React.JSX.Element {
   const [text, setText] = useState(initial)
   const submit = (): void => {
-    if (text.trim()) onSave(text.trim())
+    if (text.trim() && !locked) onSave(text.trim())
   }
   return (
     <div className="comment-editor">
@@ -83,7 +87,12 @@ function Editor({
         <button type="button" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" disabled={!text.trim()} onClick={submit}>
+        <button
+          type="button"
+          disabled={!text.trim() || !!locked}
+          title={locked ?? undefined}
+          onClick={submit}
+        >
           Save
         </button>
       </div>
@@ -123,6 +132,7 @@ function CommentCard({ comment }: { comment: ReviewComment }): React.JSX.Element
       <Editor
         initial={comment.text}
         label="Edit comment"
+        locked={ui.locked}
         onSave={(text) => {
           ui.edit(comment.id, text)
           setEditing(false)
@@ -140,10 +150,20 @@ function CommentCard({ comment }: { comment: ReviewComment }): React.JSX.Element
         </span>
         {!comment.sent && (
           <span className="comment-actions">
-            <button type="button" onClick={() => setEditing(true)}>
+            <button
+              type="button"
+              disabled={!!ui.locked}
+              title={ui.locked ?? undefined}
+              onClick={() => setEditing(true)}
+            >
               Edit
             </button>
-            <button type="button" onClick={() => ui.remove(comment.id)}>
+            <button
+              type="button"
+              disabled={!!ui.locked}
+              title={ui.locked ?? undefined}
+              onClick={() => ui.remove(comment.id)}
+            >
               Delete
             </button>
           </span>
@@ -186,7 +206,15 @@ export function LineComments({
         {here.map((c) => (
           <CommentCard key={c.id} comment={c} />
         ))}
-        {draft && <Editor initial="" label="New comment" onSave={ui.save} onCancel={ui.cancel} />}
+        {draft && (
+          <Editor
+            initial=""
+            label="New comment"
+            onSave={ui.save}
+            onCancel={ui.cancel}
+            locked={ui.locked}
+          />
+        )}
       </td>
     </tr>
   )

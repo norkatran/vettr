@@ -1,10 +1,17 @@
 export const SANDBOX_IMAGE = 'vettr-sandbox'
 
+/** Label put on every container vettr starts, so leftovers can be found and removed. */
+export const CONTAINER_LABEL = 'vettr.app=1'
+/** Label holding the pid of the vettr process that started the container. */
+export const OWNER_LABEL = 'vettr.pid'
+
 /** Where the transcripts dir is mounted inside the container; only this dir of the config is shared. */
 export const CONTAINER_CONFIG_DIR = '/vettr-config'
 
 export interface RunOptions {
   name: string
+  /** Pid of the app process that owns the container (see `OWNER_LABEL`). */
+  ownerPid: number
   /** Absolute project root; mounted at the same path inside the container so paths line up. */
   project: string
   /** Absolute paths to mount read-only over the project (git dirs and a `.git` file). */
@@ -23,6 +30,7 @@ export interface RunOptions {
  */
 export function buildRunArgs({
   name,
+  ownerPid,
   project,
   readOnlyPaths,
   transcriptsDir,
@@ -37,6 +45,10 @@ export function buildRunArgs({
     '--init',
     '--name',
     name,
+    '--label',
+    CONTAINER_LABEL,
+    '--label',
+    `${OWNER_LABEL}=${ownerPid}`,
     '--user',
     `${uid}:${gid}`,
     '--cap-drop',
@@ -58,4 +70,19 @@ export function buildRunArgs({
     ...readOnly,
     SANDBOX_IMAGE
   ]
+}
+
+/** One line of `docker ps` output for the sweep: container id and owner pid (may be empty). */
+export function parseOrphanCandidates(output: string): { id: string; pid: number | null }[] {
+  return output
+    .split('\n')
+    .map((line) => line.trim().split(/\s+/))
+    .filter(([id]) => !!id)
+    .map(([id, pid]) => ({ id: id as string, pid: /^\d+$/.test(pid ?? '') ? Number(pid) : null }))
+}
+
+/** Why the sandbox cannot start: Docker itself, or only its image (which the app can build). */
+export interface DockerProblem {
+  kind: 'docker' | 'image'
+  message: string
 }

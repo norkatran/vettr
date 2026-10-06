@@ -642,19 +642,6 @@ button.secondary {
 button.secondary:hover:not(:disabled) {
   background: var(--border);
 }
-button.link {
-  align-self: flex-start;
-  padding: 0;
-  background: transparent;
-  color: var(--text-muted);
-  text-decoration: underline;
-  font-weight: 400;
-  font-size: 12px;
-}
-button.link:hover:not(:disabled) {
-  background: transparent;
-  color: var(--text-strong);
-}
 .change-group > summary {
   display: flex;
   align-items: center;
@@ -747,6 +734,9 @@ button.link:hover:not(:disabled) {
   border-radius: 6px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   pointer-events: auto;
+}
+.notification.info {
+  border-left-color: var(--accent, #3b82f6);
 }
 .notification-body {
   flex: 1;
@@ -1154,4 +1144,9 @@ button.link:hover:not(:disabled) {
 }
 .diff .hljs-strong {
   font-weight: bold;
+}
+
+.settings-label {
+  color: var(--text-strong);
+  font-weight: 600;
 }

@@ -272,3 +272,120 @@ describe('ClaudeAdapter.start resume', () => {
     })
   })
 })
+
+describe('ClaudeAdapter.warm', () => {
+  it('starts the container and sends only init', async () => {
+    const { adapter, container } = setup()
+    await adapter.warm('/proj')
+    expect(container.commands()).toEqual([{ type: 'init', credential: 'sk-key', cwd: '/proj' }])
+  })
+
+  it('lets the first prompt use the warm container', async () => {
+    const { adapter, container } = setup()
+    await adapter.warm('/proj')
+    await adapter.start('go', '/proj')
+    expect(container.commands()).toEqual([
+      { type: 'init', credential: 'sk-key', cwd: '/proj' },
+      { type: 'prompt', text: 'go' }
+    ])
+  })
+
+  it('is a no-op when a matching warm agent exists', async () => {
+    const { adapter, container } = setup()
+    await adapter.warm('/proj')
+    await adapter.warm('/proj')
+    expect(container.commands()).toHaveLength(1)
+  })
+
+  it('waits for a prewarm in progress when a prompt arrives', async () => {
+    const { adapter, container } = setup()
+    const warming = adapter.warm('/proj')
+    await adapter.start('go', '/proj')
+    await warming
+    expect(container.commands().map((c) => (c as { type: string }).type)).toEqual([
+      'init',
+      'prompt'
+    ])
+  })
+
+  it('starts again when the prewarm in progress fails', async () => {
+    let calls = 0
+    const { adapter, container } = setup({
+      checkDocker: async () => (calls++ === 0 ? 'Docker is not available.' : null)
+    })
+    const warming = adapter.warm('/proj')
+    const warmed = expect(warming).rejects.toThrow('Docker is not available.')
+    await adapter.start('go', '/proj')
+    await warmed
+    expect(container.commands().map((c) => (c as { type: string }).type)).toEqual([
+      'init',
+      'prompt'
+    ])
+  })
+
+  it('restarts a warm agent that must resume a stored session', async () => {
+    const { adapter, container, stopSandbox } = setup()
+    await adapter.warm('/proj')
+    await adapter.start('go', '/proj', 'sess-1')
+    expect(stopSandbox).toHaveBeenCalledOnce()
+    expect(container.commands().pop()).toEqual({ type: 'prompt', text: 'go' })
+    expect(container.commands()).toContainEqual({
+      type: 'init',
+      credential: 'sk-key',
+      cwd: '/proj',
+      resume: 'sess-1'
+    })
+  })
+
+  it('restarts a warm agent that belongs to another project', async () => {
+    const { adapter, stopSandbox } = setup()
+    await adapter.warm('/proj')
+    await adapter.start('go', '/other')
+    expect(stopSandbox).toHaveBeenCalledOnce()
+  })
+
+  it('refuses to warm over a running session', async () => {
+    const { adapter } = setup()
+    await adapter.start('go', '/proj')
+    await expect(adapter.warm('/proj')).rejects.toThrow('already running')
+  })
+})
+
+describe('ClaudeAdapter.warm concurrency', () => {
+  it('joins a prewarm already in progress', async () => {
+    const { adapter, container } = setup()
+    await Promise.all([adapter.warm('/proj'), adapter.warm('/proj')])
+    expect(container.commands()).toHaveLength(1)
+  })
+})
+
+describe('ClaudeAdapter warm agent matching', () => {
+  it('reuses a warm agent that was warmed to resume the same session', async () => {
+    const { adapter, container, stopSandbox } = setup()
+    await adapter.warm('/proj', 'sess-1')
+    await adapter.warm('/proj', 'sess-1')
+    await adapter.start('go', '/proj', 'sess-1')
+    expect(stopSandbox).not.toHaveBeenCalled()
+    expect(container.commands()).toEqual([
+      { type: 'init', credential: 'sk-key', cwd: '/proj', resume: 'sess-1' },
+      { type: 'prompt', text: 'go' }
+    ])
+  })
+
+  it('does not reuse a fresh warm agent for a resume, nor a resumed one for a fresh start', async () => {
+    const { adapter, stopSandbox } = setup()
+    await adapter.warm('/proj')
+    await adapter.start('go', '/proj', 'sess-1')
+    expect(stopSandbox).toHaveBeenCalledTimes(1)
+    await adapter.stop()
+    await adapter.warm('/proj', 'sess-2')
+    await adapter.start('go', '/proj')
+    expect(stopSandbox).toHaveBeenCalledTimes(3)
+  })
+
+  it('refuses to warm over a warm agent that is for another session', async () => {
+    const { adapter } = setup()
+    await adapter.warm('/proj', 'sess-1')
+    await expect(adapter.warm('/proj', 'sess-2')).rejects.toThrow('already running')
+  })
+})
