@@ -82,7 +82,10 @@ fn block_ui(ui: &mut egui::Ui, palette: &Palette, block: &Block) {
                     ui.set_min_width(ui.available_width());
                     ui.add(
                         Label::new(
-                            RichText::new(text).monospace().size(12.0).color(palette.text),
+                            RichText::new(text)
+                                .monospace()
+                                .size(12.0)
+                                .color(palette.text),
                         )
                         .wrap(),
                     );

@@ -19,9 +19,15 @@ pub struct Span {
 pub enum Block {
     Paragraph(Vec<Span>),
     Heading(u8, Vec<Span>),
-    Code { lang: Option<String>, text: String },
+    Code {
+        lang: Option<String>,
+        text: String,
+    },
     Quote(Vec<Block>),
-    List { start: Option<u64>, items: Vec<Vec<Block>> },
+    List {
+        start: Option<u64>,
+        items: Vec<Vec<Block>>,
+    },
     Rule,
 }
 
@@ -29,7 +35,10 @@ enum Container {
     Root(Vec<Block>),
     Quote(Vec<Block>),
     Item(Vec<Block>),
-    List { start: Option<u64>, items: Vec<Vec<Block>> },
+    List {
+        start: Option<u64>,
+        items: Vec<Vec<Block>>,
+    },
 }
 
 #[derive(Default)]
@@ -100,7 +109,10 @@ pub fn parse(source: &str) -> Vec<Block> {
                 }
                 Tag::List(start) => {
                     flush(&mut stack, &mut inline);
-                    stack.push(Container::List { start, items: Vec::new() });
+                    stack.push(Container::List {
+                        start,
+                        items: Vec::new(),
+                    });
                 }
                 Tag::Item => {
                     flush(&mut stack, &mut inline);
@@ -163,9 +175,12 @@ pub fn parse(source: &str) -> Vec<Block> {
             },
             Event::SoftBreak => push_text(&mut inline, &style, " ", false),
             Event::HardBreak => push_text(&mut inline, &style, "\n", false),
-            Event::TaskListMarker(done) => {
-                push_text(&mut inline, &style, if done { "\u{2611} " } else { "\u{2610} " }, false)
-            }
+            Event::TaskListMarker(done) => push_text(
+                &mut inline,
+                &style,
+                if done { "\u{2611} " } else { "\u{2610} " },
+                false,
+            ),
             Event::Rule => {
                 flush(&mut stack, &mut inline);
                 push_block(&mut stack, Block::Rule);
@@ -192,11 +207,15 @@ mod tests {
     fn paragraphs_and_inline_styles() {
         let blocks = parse("Hello **bold** and `code`.\n\nSecond *one*.");
         assert_eq!(blocks.len(), 2);
-        let Block::Paragraph(spans) = &blocks[0] else { panic!() };
+        let Block::Paragraph(spans) = &blocks[0] else {
+            panic!()
+        };
         assert_eq!(plain(spans), "Hello bold and code.");
         assert!(spans[1].bold && !spans[0].bold);
         assert!(spans[3].code);
-        let Block::Paragraph(second) = &blocks[1] else { panic!() };
+        let Block::Paragraph(second) = &blocks[1] else {
+            panic!()
+        };
         assert!(second[1].italic);
     }
 
@@ -212,27 +231,46 @@ mod tests {
         let blocks = parse("```rust\nfn main() {}\n```\n");
         assert_eq!(
             blocks,
-            vec![Block::Code { lang: Some("rust".into()), text: "fn main() {}".into() }]
+            vec![Block::Code {
+                lang: Some("rust".into()),
+                text: "fn main() {}".into()
+            }]
         );
     }
 
     #[test]
     fn tight_and_nested_lists() {
         let blocks = parse("- one\n- two\n  - inner\n\n1. a\n2. b\n");
-        let Block::List { start: None, items } = &blocks[0] else { panic!() };
+        let Block::List { start: None, items } = &blocks[0] else {
+            panic!()
+        };
         assert_eq!(items.len(), 2);
         assert!(matches!(&items[1][1], Block::List { .. }));
-        let Block::List { start: Some(1), items } = &blocks[1] else { panic!() };
+        let Block::List {
+            start: Some(1),
+            items,
+        } = &blocks[1]
+        else {
+            panic!()
+        };
         assert_eq!(items.len(), 2);
     }
 
     #[test]
     fn quotes_links_and_html() {
         let blocks = parse("> quoted [site](https://x.dev)\n\n<b>raw</b>");
-        let Block::Quote(inner) = &blocks[0] else { panic!() };
-        let Block::Paragraph(spans) = &inner[0] else { panic!() };
+        let Block::Quote(inner) = &blocks[0] else {
+            panic!()
+        };
+        let Block::Paragraph(spans) = &inner[0] else {
+            panic!()
+        };
         assert_eq!(spans[1].link.as_deref(), Some("https://x.dev"));
-        assert!(plain(match &blocks[1] { Block::Paragraph(s) => s, _ => panic!() }).contains("<b>"));
+        assert!(plain(match &blocks[1] {
+            Block::Paragraph(s) => s,
+            _ => panic!(),
+        })
+        .contains("<b>"));
     }
 
     #[test]

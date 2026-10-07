@@ -884,8 +884,10 @@ fn draw_hunk(
                 let right_no: Option<u32> = right.and_then(|l| l.new_no);
                 let blocks = has_block(anchors, Side::Old, left_no)
                     || has_block(anchors, Side::New, right_no);
-                let n_rows = wrapped_rows(left.map_or("", |l| l.text.as_str()), half_code_w, p.char_w)
-                    .max(wrapped_rows(right.map_or("", |l| l.text.as_str()), half_code_w, p.char_w));
+                let n_rows =
+                    wrapped_rows(left.map_or("", |l| l.text.as_str()), half_code_w, p.char_w).max(
+                        wrapped_rows(right.map_or("", |l| l.text.as_str()), half_code_w, p.char_w),
+                    );
                 let rect = match next_row(ui, &mut skipped, n_rows as f32 * row_h, blocks) {
                     Some(rect) => rect,
                     None => continue,
@@ -1041,10 +1043,7 @@ fn paint_unified_row(
         painter.rect_filled(rect, 0.0, palette.select_bg);
     }
     let old_cell = Rect::from_min_size(rect.min, vec2(NUM_W, p.row_h));
-    let new_cell = Rect::from_min_size(
-        pos2(rect.left() + NUM_W, rect.top()),
-        vec2(NUM_W, p.row_h),
-    );
+    let new_cell = Rect::from_min_size(pos2(rect.left() + NUM_W, rect.top()), vec2(NUM_W, p.row_h));
     number_cell(ui, p, fc, old_cell, Side::Old, line.old_no, salt);
     number_cell(ui, p, fc, new_cell, Side::New, line.new_no, salt);
     let sign = match line.kind {
