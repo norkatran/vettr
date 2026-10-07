@@ -28,6 +28,7 @@ keyring = "4"
 ureq = "3"
 dirs = "7"
 regex = "1"
+pulldown-cmark = { version = "0.13", default-features = false }
 libc = "0.2"
 shell-words = "1"
 

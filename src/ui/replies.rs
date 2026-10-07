@@ -116,7 +116,7 @@ pub fn reply_bubble(ui: &mut egui::Ui, palette: &Palette, reply: &AgentReply, pl
                 }
             }
             ui.label(RichText::new(head).size(11.0).color(palette.text_muted));
-            ui.label(&reply.message);
+            super::markdown::show(ui, palette, &reply.message);
         });
 }
 

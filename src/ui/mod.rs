@@ -1,5 +1,6 @@
 //! egui user interface.
 
+pub mod markdown;
 pub mod agent_session;
 pub mod api_key_form;
 pub mod app;

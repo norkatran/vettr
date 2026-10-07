@@ -9,6 +9,7 @@ pub mod editor;
 pub mod fuzzy;
 pub mod git_actions;
 pub mod highlight;
+pub mod markdown;
 pub mod profiles;
 pub mod projects;
 pub mod readiness;

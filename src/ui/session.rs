@@ -507,7 +507,7 @@ fn show_item(
             Frame::new()
                 .inner_margin(Margin::symmetric(14, 6))
                 .show(ui, |ui| {
-                    ui.add(Label::new(RichText::new(text).color(palette.text_strong)).wrap());
+                    super::markdown::show(ui, palette, text);
                 });
         }
         TranscriptItem::Edit { path } => {
