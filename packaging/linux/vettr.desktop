@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=vettr
+Comment=Agent-first review IDE
+Exec=vettr
+Icon=vettr
+Terminal=false
+Categories=Development;
+StartupWMClass=vettr

@@ -48,6 +48,7 @@ You need [Rust](https://rustup.rs) (stable) and Docker.
 ```sh
 cd runner && npm install && npm run build:sandbox && cd ..   # builds the vettr-sandbox Docker image
 cargo run --release
+packaging/linux/install-desktop.sh   # Linux: installs the icon and desktop entry so the window shows the vettr logo
 ```
 
 The app also builds the sandbox image on first run if it is missing, as long as the runner bundle (`runner/dist/runner.mjs`) has been built.
