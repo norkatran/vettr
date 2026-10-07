@@ -1,4 +1,6 @@
-# Sandbox image: Node, the Claude Agent SDK and the runner (built by `npm run build:sandbox`).
+# Sandbox image: Node, the Claude Agent SDK and the runner. Built by `npm run build:sandbox` in runner/,
+# which bundles runner/dist/runner.mjs and runs `docker build -f ../sandbox/Dockerfile .` from runner/ (the
+# build context is runner/, so the COPY path below is relative to it).
 # glibc base (not alpine) because the SDK ships a native claude binary per platform.
 FROM node:22-slim
 

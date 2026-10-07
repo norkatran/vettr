@@ -1,5 +1,7 @@
 # 0004: Structured review comments and agent replies
 
+> Note: since design 0007 the app is Rust; file paths below refer to the old TypeScript layout.
+
 Status: Fulfilled
 
 ## Problem

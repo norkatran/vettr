@@ -11,7 +11,7 @@
 
 ## What is vettr?
 
-vettr (pronounced "vetter": to vet a change is to check it carefully) is a desktop app for working on a code repository through coding agents instead of an editor. Think of it as GitHub Desktop with an agent built in. You never browse a file tree to find out what happened. You describe what you want, review the result like a pull request, and send your comments back to the agent until it is right.
+vettr (pronounced "vetter": to vet a change is to check it carefully) is a native desktop app for working on a code repository through coding agents instead of an editor. Think of it as GitHub Desktop with an agent built in. You never browse a file tree to find out what happened. You describe what you want, review the result like a pull request, and send your comments back to the agent until it is right.
 
 <!-- Screenshot: the Session view with a prompt and streamed agent output -->
 <p align="center"><img src="screenshots/session.png" alt="Session view (screenshot to be added)" width="800"></p>
@@ -36,38 +36,33 @@ A VS Code-style command palette (Ctrl+Shift+P) covers everyday git: fetch, pull,
 
 - Agents run in a Docker sandbox with full permissions inside it, so there are no approval prompts to click through.
 - Git is read-only to the agent: `.git` is mounted read-only and no credentials enter the container.
-- Your API key is stored with the OS keychain via Electron `safeStorage` and passed to the sandbox over stdin, never through the environment or a file. You can save several named keys or tokens ("Work", "Personal") as profiles and switch between them in Settings; the profile in use is shown in the top bar and applies to that vettr instance only. A key is never shown again once saved.
+- Your API key is stored in the OS keychain and passed to the sandbox over stdin, never through the environment or a file. You can save several named keys or tokens ("Work", "Personal") as profiles and switch between them in Settings; the profile in use is shown in the top bar and applies to that vettr instance only. A key is never shown again once saved.
 - The agent starts as soon as you open a project, so your first prompt does not wait for the sandbox. Until it is ready (or if Docker or a key is missing) the prompt and comment inputs are disabled, with the reason shown.
 
 Docker is required. Linux is the first supported platform.
 
 ## Getting started
 
+You need [Rust](https://rustup.rs) (stable) and Docker.
+
 ```sh
-npm install
-npm run build:sandbox   # builds the vettr-sandbox Docker image (needs Docker); the app also builds it on first run if it is missing
-npm run dev             # run with hot reload
+cd runner && npm install && npm run build:sandbox && cd ..   # builds the vettr-sandbox Docker image
+cargo run --release
 ```
 
-If the Electron binary is missing after `npm install` (install scripts disabled), run `node node_modules/electron/install.js`.
+The app also builds the sandbox image on first run if it is missing, as long as the runner bundle (`runner/dist/runner.mjs`) has been built.
 
-| Script | What it does |
-| --- | --- |
-| `npm run dev` | Run with hot reload |
-| `npm run build` | Production build into `out/` |
-| `npm start` | Preview the production build |
-| `npm run typecheck` | Type-check main/preload and renderer |
-| `npm run lint` / `npm run format` | Lint and format with [Biome](https://biomejs.dev) |
-| `npm test` | Run the [Vitest](https://vitest.dev) suite |
-| `npm run test:coverage` | Run with coverage; fails unless every logic file is at 100% |
+Run the tests with:
+
+```sh
+cargo test              # the app
+cd runner && npm test   # the sandbox runner
+```
 
 ## Project layout
 
-- `src/main`: main process (filesystem, git, agent processes)
-- `src/preload`: context-isolated bridge exposing `window.vettr`
-- `src/renderer`: React UI
-- `src/runner`: runs inside the sandbox container and drives the Agent SDK
-- `src/shared`: types shared across processes
+- `src`: the Rust app (`ui` for the egui interface, `host` for git, Docker, file watching and stores)
+- `runner`: runs inside the sandbox container and drives the Agent SDK (TypeScript)
 - `sandbox`: Dockerfile for the agent sandbox image
 - `branding`: logos, icons and usage guidelines ([branding/README.md](branding/README.md))
 - `docs`: [project brief](docs/PROJECT_BRIEF.md) and [design documents](docs/designs/README.md)
