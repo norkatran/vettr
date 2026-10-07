@@ -60,10 +60,20 @@ export async function checkOAuthToken(
 }
 
 /**
- * Validate and save an API key or OAuth token. Checking first matters: the agent treats a bad key
- * as retryable and keeps retrying for minutes, which looks like a hang, so the user hears about
- * it up front. OAuth tokens get the narrower check above.
+ * Check an API key or OAuth token with Anthropic and resolve to the trimmed value. Checking first
+ * matters: the agent treats a bad key as retryable and keeps retrying for minutes, which looks like
+ * a hang, so the user hears about it up front. OAuth tokens get the narrower check above.
  */
+export async function validateApiKey(key: string, fetchStatus: FetchStatus): Promise<string> {
+  const trimmed = key.trim()
+  if (!trimmed) throw new Error('The API key is empty')
+  const check = credentialKind(trimmed) === 'apiKey' ? checkApiKey : checkOAuthToken
+  const problem = await check(trimmed, fetchStatus)
+  if (problem) throw new Error(problem)
+  return trimmed
+}
+
+/** Validate and save an API key or OAuth token. */
 export async function saveApiKey(
   store: ApiKeyStore,
   key: string,
@@ -71,11 +81,7 @@ export async function saveApiKey(
   /** Runs after validation and before storing; throw to abort (for example a declined prompt). */
   beforeSave?: () => Promise<void>
 ): Promise<void> {
-  const trimmed = key.trim()
-  if (!trimmed) throw new Error('The API key is empty')
-  const check = credentialKind(trimmed) === 'apiKey' ? checkApiKey : checkOAuthToken
-  const problem = await check(trimmed, fetchStatus)
-  if (problem) throw new Error(problem)
+  const trimmed = await validateApiKey(key, fetchStatus)
   await beforeSave?.()
   await store.set(trimmed)
 }

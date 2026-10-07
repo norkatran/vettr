@@ -1,68 +1,70 @@
+import type { ProfileInfo } from '@shared/profiles'
 import { defaultSettings, EDITOR_PRESETS, matchPreset, type Settings } from '@shared/settings'
 import { useEffect, useState } from 'react'
 import { ApiKeyForm } from './ApiKeyForm'
-import type { ApiKey } from './useApiKey'
+import type { Profiles } from './useProfiles'
 
 const CUSTOM = '__custom__'
 const NONE = ''
 
-/**
- * The saved key or token, managed here. Its value is never shown once saved: the user can only
- * replace it or remove it.
- */
-function ApiKeySetting({ apiKey }: { apiKey: ApiKey }): React.JSX.Element | null {
-  const [changing, setChanging] = useState(false)
+/** One saved profile: use it, edit it (rename or replace its key) or remove it. */
+function ProfileRow({
+  profile,
+  active,
+  profiles
+}: {
+  profile: ProfileInfo
+  active: boolean
+  profiles: Profiles
+}): React.JSX.Element {
+  const [editing, setEditing] = useState(false)
   const [confirmingRemove, setConfirmingRemove] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  if (apiKey.hasKey === null) return null
-
-  if (!apiKey.hasKey) {
+  if (editing) {
     return (
-      <div className="settings-field">
+      <li className="profile-row">
         <ApiKeyForm
-          onSave={apiKey.save}
-          explanation="No key or token is saved, so the agent cannot start."
-        />
-      </div>
-    )
-  }
-  if (changing) {
-    return (
-      <div className="settings-field">
-        <ApiKeyForm
-          saveLabel="Replace"
-          onSave={async (key) => {
-            const failure = await apiKey.save(key)
-            if (!failure) setChanging(false)
+          saveLabel="Save"
+          initialName={profile.name}
+          keyOptional
+          onSave={async (name, key) => {
+            const failure = await profiles.update(profile.id, {
+              name,
+              ...(key ? { credential: key } : {})
+            })
+            if (!failure) setEditing(false)
             return failure
           }}
-          onCancel={() => setChanging(false)}
+          onCancel={() => setEditing(false)}
         />
-      </div>
+      </li>
     )
   }
   return (
-    <div className="settings-field">
-      <span className="settings-label">Anthropic API key or Claude OAuth token</span>
-      <p className="hint">
-        A key or token is saved. For security it is not shown again; replace it or remove it.
-      </p>
-      <div className="key-row">
-        <button
-          type="button"
-          title="Saving a new key restarts the agent, which ends any session in progress"
-          onClick={() => setChanging(true)}
-        >
-          Change
+    <li className="profile-row">
+      <div className="profile-line">
+        <span className="profile-name">{profile.name}</span>
+        {active && <span className="profile-badge">In use</span>}
+        <span className="profile-spacer" />
+        {!active && (
+          <button
+            type="button"
+            title="Use this profile in this window; restarts the agent"
+            onClick={() => void profiles.use(profile.id).then(setError)}
+          >
+            Use
+          </button>
+        )}
+        <button type="button" className="secondary" onClick={() => setEditing(true)}>
+          Edit
         </button>
         {confirmingRemove ? (
           <>
             <button
               type="button"
-              title="Stops the agent, ending any session in progress"
               onClick={() => {
                 setConfirmingRemove(false)
-                void apiKey.clear().then(setError)
+                void profiles.remove(profile.id).then(setError)
               }}
             >
               Confirm remove
@@ -72,22 +74,66 @@ function ApiKeySetting({ apiKey }: { apiKey: ApiKey }): React.JSX.Element | null
             </button>
           </>
         ) : (
-          <button
-            type="button"
-            className="secondary"
-            title="Removing the key stops the agent"
-            onClick={() => setConfirmingRemove(true)}
-          >
+          <button type="button" className="secondary" onClick={() => setConfirmingRemove(true)}>
             Remove
           </button>
         )}
       </div>
       {error && <p className="error-text">{error}</p>}
+    </li>
+  )
+}
+
+/**
+ * The saved profiles, managed here. Credentials are never shown once saved: a profile can only be
+ * renamed, given a new key, or removed. The profile in use applies to this app instance only.
+ */
+function ProfilesSetting({ profiles }: { profiles: Profiles }): React.JSX.Element | null {
+  const [adding, setAdding] = useState(false)
+  if (!profiles.state) return null
+  const list = profiles.state.profiles
+  return (
+    <div className="settings-field">
+      <span className="settings-label">Claude profiles</span>
+      <p className="hint">
+        {list.length === 0
+          ? 'No profile is saved, so the agent cannot start.'
+          : 'Each profile is a named API key or OAuth token. The one in use applies to this app instance only; other open instances keep theirs.'}
+      </p>
+      {list.length > 0 && (
+        <ul className="profile-list">
+          {list.map((p) => (
+            <ProfileRow
+              key={p.id}
+              profile={p}
+              active={p.id === profiles.state?.activeId}
+              profiles={profiles}
+            />
+          ))}
+        </ul>
+      )}
+      {list.length === 0 || adding ? (
+        <ApiKeyForm
+          saveLabel="Add profile"
+          onSave={async (name, key) => {
+            const failure = await profiles.add(name, key)
+            if (!failure) setAdding(false)
+            return failure
+          }}
+          onCancel={list.length > 0 ? () => setAdding(false) : undefined}
+        />
+      ) : (
+        <div className="key-row">
+          <button type="button" onClick={() => setAdding(true)}>
+            Add profile
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
-export function SettingsView({ apiKey }: { apiKey: ApiKey }): React.JSX.Element {
+export function SettingsView({ profiles }: { profiles: Profiles }): React.JSX.Element {
   const [settings, setSettings] = useState<Settings | null>(null)
   // Picking "Custom" with an empty command has no value to infer it from, so remember it
   const [custom, setCustom] = useState(false)
@@ -115,7 +161,7 @@ export function SettingsView({ apiKey }: { apiKey: ApiKey }): React.JSX.Element 
   return (
     <main className="settings">
       <h1>Settings</h1>
-      <ApiKeySetting apiKey={apiKey} />
+      <ProfilesSetting profiles={profiles} />
       <div className="settings-field">
         <label htmlFor="editor-preset">External editor</label>
         <select id="editor-preset" value={selected} onChange={(e) => choose(e.target.value)}>

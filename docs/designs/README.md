@@ -16,3 +16,4 @@ Every feature that adds something new to vettr, or improves an existing part, ge
 | 0003 | [Slash command discovery](0003-slash-commands.md) | Fulfilled |
 | 0004 | [Structured review comments and agent replies](0004-structured-review.md) | Fulfilled |
 | 0005 | [File watcher respects .gitignore](0005-watcher-respects-gitignore.md) | Fulfilled |
+| 0006 | [Credential profiles](0006-credential-profiles.md) | Fulfilled |

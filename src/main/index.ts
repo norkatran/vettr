@@ -6,6 +6,7 @@ import { getSessionMessages, listSessions as sdkListSessions } from '@anthropic-
 import { buildEditorCommand } from '@shared/editor'
 import type { GitAction } from '@shared/gitActions'
 import { IpcChannel } from '@shared/ipc'
+import { type ProfilesState, validateProfileName } from '@shared/profiles'
 import { SANDBOX_IMAGE } from '@shared/sandbox'
 import {
   app,
@@ -19,8 +20,7 @@ import {
 } from 'electron'
 import icon from '../../branding/icons/vettr-app-icon-512.png?asset'
 import { AgentManager } from './agentManager'
-import { createApiKeyStore } from './apiKey'
-import { saveApiKey } from './apiKeyCheck'
+import { validateApiKey } from './apiKeyCheck'
 import { confirmIfBusy } from './busyGuard'
 import { attempt, ClaudeAdapter } from './claudeAdapter'
 import {
@@ -38,6 +38,7 @@ import {
   stageFiles,
   unstageFiles
 } from './git'
+import { createProfileStore } from './profileStore'
 import { forgetProject, getProjectState, loadProjectState, setCurrentProject } from './projectStore'
 import { readResolved, setResolved } from './resolvedStore'
 import {
@@ -54,11 +55,39 @@ import { getSettings, loadSettings, updateSettings } from './settingsStore'
 import { projectDataDir, transcriptsDir } from './transcripts'
 import { createProjectWatcher } from './watcher'
 
-const apiKeys = createApiKeyStore(join(app.getPath('userData'), 'apikey'), {
-  isAvailable: () => safeStorage.isEncryptionAvailable(),
-  encrypt: (plain) => safeStorage.encryptString(plain),
-  decrypt: (encrypted) => safeStorage.decryptString(encrypted)
-})
+const profiles = createProfileStore(
+  join(app.getPath('userData'), 'profiles.json'),
+  {
+    isAvailable: () => safeStorage.isEncryptionAvailable(),
+    encrypt: (plain) => safeStorage.encryptString(plain),
+    decrypt: (encrypted) => safeStorage.decryptString(encrypted)
+  },
+  join(app.getPath('userData'), 'apikey')
+)
+// The profile this app instance uses. Held in memory only, so switching it never affects other
+// running instances; the file just remembers the last one used to seed the next launch.
+let activeProfileId: string | null = null
+const activeCredential = async (): Promise<string | null> =>
+  activeProfileId ? profiles.credential(activeProfileId) : null
+async function profilesState(): Promise<ProfilesState> {
+  const list = await profiles.list()
+  return {
+    profiles: list,
+    activeId: list.some((p) => p.id === activeProfileId) ? activeProfileId : null
+  }
+}
+async function broadcastProfiles(): Promise<void> {
+  const state = await profilesState()
+  for (const win of BrowserWindow.getAllWindows())
+    win.webContents.send(IpcChannel.profilesChanged, state)
+}
+/** Use `id` (or nothing) in this instance, remember it for the next launch and restart the agent. */
+async function activateProfile(id: string | null): Promise<void> {
+  activeProfileId = id
+  if (id) await profiles.setLastUsed(id)
+  void agentManager.keyChanged().catch(() => undefined)
+  await broadcastProfiles()
+}
 const exec = promisify(execFile)
 const agent = new ClaudeAdapter({
   checkDocker: () => checkDocker((file, args) => exec(file, args)),
@@ -72,7 +101,7 @@ const agent = new ClaudeAdapter({
       uid: process.getuid?.() as number,
       gid: process.getgid?.() as number
     }),
-  getApiKey: () => apiKeys.get(),
+  getApiKey: activeCredential,
   stopSandbox
 })
 agent.onEvent((event) => {
@@ -95,7 +124,7 @@ const agentManager = new AgentManager({
       readFile: (path) => readFile(path, 'utf8'),
       onProgress
     }),
-  hasKey: async () => (await apiKeys.get()) !== null
+  hasKey: async () => (await activeCredential()) !== null
 })
 agentManager.onReadiness((readiness) => {
   for (const win of BrowserWindow.getAllWindows())
@@ -228,6 +257,7 @@ function buildMenu(): void {
 void app.whenReady().then(async () => {
   loadProjectState()
   loadSettings()
+  activeProfileId = (await profiles.lastUsedId()) ?? (await profiles.list())[0]?.id ?? null
   const { current } = getProjectState()
   if (current && !(await findRepoRoot(current))) forgetProject(current)
   ipcMain.handle(IpcChannel.getCurrentProject, () => getProjectState().current)
@@ -329,40 +359,76 @@ void app.whenReady().then(async () => {
   )
   ipcMain.handle(IpcChannel.getSettings, () => getSettings())
   ipcMain.handle(IpcChannel.setSettings, (_event, next: unknown) => updateSettings(next))
-  ipcMain.handle(IpcChannel.hasApiKey, async () => (await apiKeys.get()) !== null)
-  ipcMain.handle(IpcChannel.setApiKey, (event, key: string) =>
+  ipcMain.handle(IpcChannel.getProfiles, () => profilesState())
+  ipcMain.handle(IpcChannel.addProfile, (_event, name: string, credential: string) =>
     attempt(async () => {
-      const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
-      await saveApiKey(
-        apiKeys,
-        key,
-        (url, init) => fetch(url, init),
-        () =>
-          confirmIfBusy(agentManager.isBusy, () =>
+      const checked = validateProfileName(name, await profiles.list())
+      if ('error' in checked) throw new Error(checked.error)
+      const trimmed = await validateApiKey(credential, (url, init) => fetch(url, init))
+      const id = await profiles.add(checked.name, trimmed)
+      // The first profile (or one added while none is usable) is used straight away
+      if (!(await profilesState()).activeId) await activateProfile(id)
+      else await broadcastProfiles()
+    })
+  )
+  ipcMain.handle(
+    IpcChannel.updateProfile,
+    (event, id: string, changes: { name?: string; credential?: string }) =>
+      attempt(async () => {
+        const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
+        const credential = changes.credential?.trim() || undefined
+        if (changes.name !== undefined) {
+          const checked = validateProfileName(changes.name, await profiles.list(), id)
+          if ('error' in checked) throw new Error(checked.error)
+        }
+        const validated = credential
+          ? await validateApiKey(credential, (url, init) => fetch(url, init))
+          : undefined
+        const restart = validated !== undefined && id === activeProfileId
+        if (restart)
+          await confirmIfBusy(agentManager.isBusy, () =>
             confirmStop(
               win,
               'Saving a new key restarts the agent, and the work in progress is lost.',
               'Save key'
             )
           )
-      )
-      // Always restart the agent with the new credential
-      void agentManager.keyChanged().catch(() => undefined)
-    })
+        await profiles.update(id, { name: changes.name, credential: validated })
+        if (restart) void agentManager.keyChanged().catch(() => undefined)
+        await broadcastProfiles()
+      })
   )
-  ipcMain.handle(IpcChannel.clearApiKey, (event) =>
+  ipcMain.handle(IpcChannel.removeProfile, (event, id: string) =>
     attempt(async () => {
       const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
+      const wasActive = id === activeProfileId
+      if (wasActive)
+        await confirmIfBusy(agentManager.isBusy, () =>
+          confirmStop(
+            win,
+            'Removing the profile in use restarts or stops the agent, and the work in progress is lost.',
+            'Remove profile'
+          )
+        )
+      await profiles.remove(id)
+      if (wasActive) await activateProfile((await profiles.list())[0]?.id ?? null)
+      else await broadcastProfiles()
+    })
+  )
+  ipcMain.handle(IpcChannel.setActiveProfile, (event, id: string) =>
+    attempt(async () => {
+      const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
+      if (id === activeProfileId) return
+      if (!(await profiles.list()).some((p) => p.id === id))
+        throw new Error('That profile no longer exists.')
       await confirmIfBusy(agentManager.isBusy, () =>
         confirmStop(
           win,
-          'Removing the key stops the agent, and the work in progress is lost.',
-          'Remove key'
+          'Switching profile restarts the agent, and the work in progress is lost.',
+          'Switch profile'
         )
       )
-      await apiKeys.clear()
-      // With no key the agent stops and inputs that direct it are disabled
-      void agentManager.keyChanged().catch(() => undefined)
+      await activateProfile(id)
     })
   )
   buildMenu()

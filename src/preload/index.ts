@@ -1,5 +1,6 @@
 import type { AgentEvent } from '@shared/agent'
 import { IpcChannel, type VettrApi } from '@shared/ipc'
+import type { ProfilesState } from '@shared/profiles'
 import type { Readiness } from '@shared/readiness'
 import { contextBridge, type IpcRendererEvent, ipcRenderer } from 'electron'
 
@@ -48,9 +49,16 @@ const api: VettrApi = {
     ipcRenderer.on(IpcChannel.readiness, listener)
     return () => ipcRenderer.removeListener(IpcChannel.readiness, listener)
   },
-  hasApiKey: () => ipcRenderer.invoke(IpcChannel.hasApiKey),
-  setApiKey: (key) => ipcRenderer.invoke(IpcChannel.setApiKey, key),
-  clearApiKey: () => ipcRenderer.invoke(IpcChannel.clearApiKey),
+  getProfiles: () => ipcRenderer.invoke(IpcChannel.getProfiles),
+  addProfile: (name, credential) => ipcRenderer.invoke(IpcChannel.addProfile, name, credential),
+  updateProfile: (id, changes) => ipcRenderer.invoke(IpcChannel.updateProfile, id, changes),
+  removeProfile: (id) => ipcRenderer.invoke(IpcChannel.removeProfile, id),
+  setActiveProfile: (id) => ipcRenderer.invoke(IpcChannel.setActiveProfile, id),
+  onProfilesChanged: (callback) => {
+    const listener = (_event: IpcRendererEvent, state: ProfilesState): void => callback(state)
+    ipcRenderer.on(IpcChannel.profilesChanged, listener)
+    return () => ipcRenderer.removeListener(IpcChannel.profilesChanged, listener)
+  },
   openInEditor: (project, path, line) =>
     ipcRenderer.invoke(IpcChannel.openInEditor, project, path, line),
   getSettings: () => ipcRenderer.invoke(IpcChannel.getSettings),

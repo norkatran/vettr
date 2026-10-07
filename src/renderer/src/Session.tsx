@@ -8,14 +8,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiKeyForm } from './ApiKeyForm'
 import { ReplyBubble, ResolvableThread } from './Replies'
 import type { AgentSession } from './useAgentSession'
-import type { ApiKey } from './useApiKey'
+import type { Profiles } from './useProfiles'
 import { useSlashCommands } from './useSlashCommands'
 
 interface SessionProps {
   project: string | null
   session: AgentSession
   readiness: Readiness
-  apiKey: ApiKey
+  profiles: Profiles
 }
 
 const TOOL_ICON = { running: '…', done: '✓', error: '✗', stopped: '–' } as const
@@ -295,7 +295,12 @@ function Transcript({
   )
 }
 
-export function Session({ project, session, readiness, apiKey }: SessionProps): React.JSX.Element {
+export function Session({
+  project,
+  session,
+  readiness,
+  profiles
+}: SessionProps): React.JSX.Element {
   const { state } = session
   const block = readinessBlockReason(readiness)
   const commands = useSlashCommands()
@@ -305,15 +310,15 @@ export function Session({ project, session, readiness, apiKey }: SessionProps): 
       <Transcript session={session} project={project} readiness={readiness} commands={commands} />
     )
 
-  const noKey = readiness.reason === 'no-key' || apiKey.hasKey === false
+  const noKey = readiness.reason === 'no-key' || profiles.hasProfiles === false
   return (
     <main className="session">
       <h1>{project ? 'What should the agent do?' : 'Open a project to get started'}</h1>
       {!project && <p className="hint">Use File &gt; Open Project (Ctrl+O).</p>}
       {project && noKey && (
         <ApiKeyForm
-          onSave={apiKey.save}
-          explanation="The agent needs a key or token before you can write a prompt. You can change or remove it later in Settings."
+          onSave={(name, key) => profiles.add(name, key)}
+          explanation="The agent needs a key or token before you can write a prompt. Give it a name; you can add more profiles and switch between them later in Settings."
         />
       )}
       {state.startError && <p className="error-text">{state.startError}</p>}

@@ -1,6 +1,7 @@
 import type { AgentEvent, SlashCommandInfo } from './agent'
 import type { FileChange, RepoChanges } from './diff'
 import type { Branch, GitAction } from './gitActions'
+import type { ProfilesState } from './profiles'
 import type { Readiness } from './readiness'
 import type { RepoStatus } from './repoStatus'
 import type { SessionState } from './session'
@@ -68,12 +69,18 @@ export interface VettrApi {
   getSlashCommands(): Promise<SlashCommandInfo[]>
   /** Subscribe to events from the running session; returns an unsubscribe function. */
   onAgentEvent(callback: (event: AgentEvent) => void): () => void
-  /** Whether an Anthropic API key is saved. The key itself never reaches the renderer. */
-  hasApiKey(): Promise<boolean>
-  /** Save the API key (encrypted on the host); resolves to null or an error message. */
-  setApiKey(key: string): Promise<string | null>
-  /** Remove the saved key and stop the agent; resolves to null or an error message. */
-  clearApiKey(): Promise<string | null>
+  /** The saved credential profiles and this instance's active one. Credentials never reach the renderer. */
+  getProfiles(): Promise<ProfilesState>
+  /** Save a named credential (validated first); the first profile becomes active. Resolves to null or an error message. */
+  addProfile(name: string, credential: string): Promise<string | null>
+  /** Rename and/or replace the credential (omit it to keep the old one); resolves to null or an error message. */
+  updateProfile(id: string, changes: { name?: string; credential?: string }): Promise<string | null>
+  /** Delete a profile; if it is active the agent switches to another or stops. Resolves to null or an error message. */
+  removeProfile(id: string): Promise<string | null>
+  /** Use a profile in this app instance only, restarting the agent; resolves to null or an error message. */
+  setActiveProfile(id: string): Promise<string | null>
+  /** Subscribe to profile changes (including the active one); returns an unsubscribe function. */
+  onProfilesChanged(callback: (state: ProfilesState) => void): () => void
   /** Open a project file in the user's editor at `line`; resolves to null or a message for the user. */
   openInEditor(project: string, path: string, line: number): Promise<string | null>
   getSettings(): Promise<Settings>
@@ -109,9 +116,12 @@ export const IpcChannel = {
   loadSession: 'agent:session',
   getResolvedComments: 'comments:resolved',
   setCommentResolved: 'comments:resolve',
-  hasApiKey: 'apikey:status',
-  setApiKey: 'apikey:set',
-  clearApiKey: 'apikey:clear',
+  getProfiles: 'profiles:list',
+  addProfile: 'profiles:add',
+  updateProfile: 'profiles:update',
+  removeProfile: 'profiles:remove',
+  setActiveProfile: 'profiles:use',
+  profilesChanged: 'profiles:changed',
   openInEditor: 'editor:open',
   getSettings: 'settings:get',
   setSettings: 'settings:set'

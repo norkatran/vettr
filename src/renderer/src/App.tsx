@@ -15,8 +15,8 @@ import { SettingsView } from './SettingsView'
 import { Sidebar, type View } from './Sidebar'
 import { StatusBar } from './StatusBar'
 import { useAgentSession } from './useAgentSession'
-import { useApiKey } from './useApiKey'
 import { useChanges } from './useChanges'
+import { useProfiles } from './useProfiles'
 import { useReadiness } from './useReadiness'
 import { useResolvedComments } from './useResolvedComments'
 import { useReviewComments } from './useReviewComments'
@@ -73,7 +73,7 @@ export function App(): React.JSX.Element {
   const changes = useChanges(project)
   const count = changes.changes ? changedFileCount(changes.changes) : 0
   const readiness = useReadiness()
-  const apiKey = useApiKey()
+  const profiles = useProfiles()
   const agentBlock = readinessBlockReason(readiness)
   const session = useAgentSession(project)
   const sessions = useSessionList(project, `${session.state.status}:${session.state.sessionId}`)
@@ -193,6 +193,16 @@ export function App(): React.JSX.Element {
     <div className="layout">
       <header className="titlebar">
         <span>vettr</span>
+        {profiles.state && (
+          <button
+            type="button"
+            className={`profile-chip${profiles.active ? '' : ' none'}`}
+            onClick={() => setView('settings')}
+            title="Claude profile in use by this window. Click to manage profiles in Settings"
+          >
+            {profiles.active?.name ?? 'No profile'}
+          </button>
+        )}
         <span className="project">{project ?? 'No project open'}</span>
         <button
           type="button"
@@ -229,9 +239,14 @@ export function App(): React.JSX.Element {
         />
         <ResolutionContext.Provider value={resolved}>
           {view === 'settings' ? (
-            <SettingsView apiKey={apiKey} />
+            <SettingsView profiles={profiles} />
           ) : view === 'session' ? (
-            <Session project={project} session={session} readiness={readiness} apiKey={apiKey} />
+            <Session
+              project={project}
+              session={session}
+              readiness={readiness}
+              profiles={profiles}
+            />
           ) : (
             <Changes
               project={project}
