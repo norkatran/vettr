@@ -149,7 +149,9 @@ pub fn apply(ctx: &egui::Context, palette: &Palette) {
     visuals.error_fg_color = palette.red;
     visuals.warn_fg_color = palette.amber;
     visuals.selection.bg_fill = palette.accent;
-    visuals.selection.stroke = Stroke::new(1.0, palette.text_on_accent);
+    // egui draws a focused text input with this stroke: the old CSS focus ring
+    // (`border-color` plus a 1px `box-shadow`, i.e. 2px of `--border-focus`).
+    visuals.selection.stroke = Stroke::new(2.0, palette.border_focus);
 
     visuals.widgets.noninteractive.bg_fill = palette.bg;
     visuals.widgets.noninteractive.weak_bg_fill = palette.bg;
@@ -170,6 +172,12 @@ pub fn apply(ctx: &egui::Context, palette: &Palette) {
     visuals.widgets.active.weak_bg_fill = palette.accent;
     visuals.widgets.active.bg_stroke = Stroke::new(1.0, palette.border_focus);
     visuals.widgets.active.fg_stroke = Stroke::new(1.0, palette.text_on_accent);
+
+    // Rounded corners as in the CSS (buttons and inputs)
+    let radius = egui::CornerRadius::same(6);
+    visuals.widgets.inactive.corner_radius = radius;
+    visuals.widgets.hovered.corner_radius = radius;
+    visuals.widgets.active.corner_radius = radius;
 
     ctx.set_visuals(visuals);
 

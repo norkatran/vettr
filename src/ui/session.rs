@@ -322,7 +322,9 @@ fn composer(
         .id(id)
         .hint_text(muted(palette, view.placeholder, 14.0))
         .desired_width(f32::INFINITY)
-        .desired_rows(view.rows);
+        .desired_rows(view.rows)
+        .margin(egui::Margin::symmetric(16, 14))
+        .text_color(palette.text_strong);
     if menu_open {
         // Tab and Escape act on the menu, not on the focus
         edit = edit.event_filter(egui::EventFilter {

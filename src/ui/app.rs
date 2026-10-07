@@ -390,18 +390,18 @@ impl VettrApp {
             )
             .show(ui, |ui| self.title_bar(ui, &palette));
 
-        let status_actions = egui::Panel::bottom("statusbar")
-            .show(ui, |ui| {
-                let env = StatusBarEnv {
-                    project: self.project.as_deref(),
-                    palette: &palette,
-                    backend: &self.backend,
-                    notifier: &self.notifier,
-                    theme,
-                };
-                status_bar::show(ui, &mut self.status, &env)
-            })
-            .inner;
+        // `status_bar::show` creates its own bottom panel; wrapping it in another one stacked a
+        // second, default-framed panel (with its own top separator line) around it.
+        let status_actions = {
+            let env = StatusBarEnv {
+                project: self.project.as_deref(),
+                palette: &palette,
+                backend: &self.backend,
+                notifier: &self.notifier,
+                theme,
+            };
+            status_bar::show(ui, &mut self.status, &env)
+        };
         for action in status_actions {
             match action {
                 StatusBarAction::ToggleTheme => {
