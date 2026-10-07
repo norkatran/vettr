@@ -264,7 +264,7 @@ impl VettrApp {
 
     fn title_bar(&mut self, ui: &mut egui::Ui, palette: &Palette) {
         ui.horizontal(|ui| {
-            ui.label(RichText::new("vettr").strong().color(palette.text_strong));
+            // ui.label(RichText::new("vettr").strong().color(palette.text_strong));
             let active_name: Option<String> = self.profiles.active_id.as_ref().and_then(|id| {
                 self.profiles
                     .profiles
