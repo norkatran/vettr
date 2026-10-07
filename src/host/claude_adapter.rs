@@ -309,12 +309,15 @@ fn finish(
     let stop_requested;
     {
         let mut inner = lock(&shared.inner);
-        if inner.generation == generation {
-            inner.container = None;
-            inner.active = false;
-            inner.warm_cwd = None;
-            inner.warm_resume = None;
+        if inner.generation != generation {
+            // A newer container has launched, so this exit is stale. Reporting it would end the
+            // live session in the UI (and trigger a crash restart) while it is still streaming.
+            return;
         }
+        inner.container = None;
+        inner.active = false;
+        inner.warm_cwd = None;
+        inner.warm_resume = None;
         stop_requested = inner.stop_requested;
     }
     let message: Option<String> = match failure {
@@ -731,6 +734,19 @@ mod tests {
         t.wait_for_events(1);
         pause();
         assert!(lock(&seen).is_empty());
+    }
+
+    #[test]
+    fn ignores_the_exit_of_a_superseded_container() {
+        let t = setup();
+        t.adapter.start("p", "/proj", None).unwrap();
+        // A newer container has launched since the first one's watcher began
+        lock(&t.adapter.shared.inner).generation += 1;
+        let tail = Arc::new(Mutex::new(String::new()));
+        finish(&t.adapter.shared, 1, Ok(Some(1)), false, &tail);
+        assert_eq!(t.events(), vec![]);
+        // The newer container's state is untouched
+        assert!(lock(&t.adapter.shared.inner).container.is_some());
     }
 
     #[test]
