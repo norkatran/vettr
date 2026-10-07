@@ -448,6 +448,19 @@ pub struct ChangesModel {
     pub scroll_to: Option<String>,
     pub(super) view: ViewState,
     pub(super) commit: CommitState,
+    /// The file shown in the read-only viewer modal, if open.
+    pub viewer: Option<FileViewer>,
+}
+
+/// A file open in the viewer modal: its text split into lines, with syntax highlighting.
+pub struct FileViewer {
+    pub path: String,
+    pub content: Result<ViewedFile, String>,
+}
+
+pub struct ViewedFile {
+    pub lines: Vec<String>,
+    pub highlight: HunkHighlight,
 }
 
 impl ChangesModel {
@@ -470,7 +483,34 @@ impl ChangesModel {
             scroll_to: None,
             view: ViewState::default(),
             commit: CommitState::default(),
+            viewer: None,
         }
+    }
+
+    /// Open the viewer modal on a project file (read synchronously; files are size-capped).
+    pub fn view_file(&mut self, path: String) {
+        let Some(project) = self.project.clone() else {
+            return;
+        };
+        let content = self
+            .backend
+            .read_project_file(&project, &path)
+            .map(|text| {
+                let lines: Vec<String> = text.lines().map(str::to_string).collect();
+                let diff_lines: Vec<DiffLine> = lines
+                    .iter()
+                    .enumerate()
+                    .map(|(i, t)| DiffLine {
+                        kind: LineKind::Context,
+                        old_no: Some(i as u32 + 1),
+                        new_no: Some(i as u32 + 1),
+                        text: t.clone(),
+                    })
+                    .collect();
+                let highlight = crate::highlight::highlight_hunk(&path, &diff_lines);
+                ViewedFile { lines, highlight }
+            });
+        self.viewer = Some(FileViewer { path, content });
     }
 
     /// Call when the open project changes (also fine to call every frame with the same value).

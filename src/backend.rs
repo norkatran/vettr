@@ -719,6 +719,25 @@ impl Backend {
 
     // ----- editor and settings -----
 
+    /// Read a project file as text for the in-app viewer (at most 2 MB, no binary files).
+    pub fn read_project_file(&self, project: &str, path: &str) -> Result<String, String> {
+        const MAX_BYTES: u64 = 2 * 1024 * 1024;
+        let file = resolve_in_project(project, path)
+            .ok_or_else(|| "That file is outside the project.".to_string())?;
+        let meta = fs::metadata(&file).map_err(|e| format!("Could not read the file: {e}"))?;
+        if !meta.is_file() {
+            return Err("That is not a file.".to_string());
+        }
+        if meta.len() > MAX_BYTES {
+            return Err("The file is too large to view (over 2 MB).".to_string());
+        }
+        let bytes = fs::read(&file).map_err(|e| format!("Could not read the file: {e}"))?;
+        if bytes.contains(&0) {
+            return Err("This looks like a binary file.".to_string());
+        }
+        String::from_utf8(bytes).map_err(|_| "The file is not valid UTF-8 text.".to_string())
+    }
+
     /// Open a project file in the user's editor at `line` (the editor is started detached).
     pub fn open_in_editor(&self, project: &str, path: &str, line: u32) -> Result<(), String> {
         let no_editor = "No editor is set. Choose one in Settings.".to_string();

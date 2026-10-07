@@ -21,7 +21,7 @@ use egui::{
 
 use super::changes_model::{
     can_commit, draft_ends_at, draft_selects, file_key, file_paths, first_line, pick_draft,
-    row_visible, since_key, split_index_rows, status_label, status_letter, ChangesModel, DiffMode,
+    row_visible, since_key, split_index_rows, status_label, status_letter, ChangesModel, DiffMode, FileViewer,
     DraftState, HunkCache, NewComment, ReviewModel, Scope, ViewState,
 };
 use super::notifications::Notifier;
@@ -58,6 +58,7 @@ pub struct ChangesOutput {
 enum Action {
     Move { stage: bool, paths: Vec<String> },
     OpenInEditor { path: String, line: u32 },
+    ViewFile(String),
     Add(NewComment),
     Edit { id: String, text: String },
     Remove(String),
@@ -263,12 +264,79 @@ pub fn show(
                 }
             }
             Action::OpenInEditor { path, line } => changes.open_in_editor(path, line),
+            Action::ViewFile(path) => changes.view_file(path),
             Action::Add(comment) => review.add(comment),
             Action::Edit { id, text } => review.edit(&id, &text),
             Action::Remove(id) => review.remove(&id),
         }
     }
+    show_viewer(ui.ctx(), changes, palette);
     out
+}
+
+/// The read-only file viewer modal: scrollable, syntax highlighted, one virtualized row per line.
+fn show_viewer(ctx: &egui::Context, changes: &mut ChangesModel, palette: &Palette) {
+    let Some(viewer) = changes.viewer.as_ref() else {
+        return;
+    };
+    let mut open = true;
+    let screen = ctx.content_rect().size();
+    egui::Window::new(RichText::new(&viewer.path).monospace())
+        .id(Id::new("file-viewer"))
+        .open(&mut open)
+        .collapsible(false)
+        .default_size(vec2(screen.x * 0.7, screen.y * 0.8))
+        .resizable(true)
+        .show(ctx, |ui| draw_viewer(ui, viewer, palette));
+    let escape = ctx.input(|i| i.key_pressed(Key::Escape));
+    if !open || escape {
+        changes.viewer = None;
+    }
+}
+
+fn draw_viewer(ui: &mut egui::Ui, viewer: &FileViewer, palette: &Palette) {
+    let mono = &egui::TextStyle::Monospace.resolve(ui.style());
+    let file = match &viewer.content {
+        Ok(file) => file,
+        Err(msg) => {
+            ui.label(RichText::new(msg).color(palette.text_muted));
+            return;
+        }
+    };
+    if file.lines.is_empty() {
+        ui.label(RichText::new("The file is empty.").color(palette.text_muted));
+        return;
+    }
+    let row_h = ui.ctx().fonts_mut(|f| f.row_height(mono));
+    let digits = file.lines.len().to_string().len();
+    egui::ScrollArea::both()
+        .auto_shrink([false, false])
+        .show_rows(ui, row_h, file.lines.len(), |ui, range| {
+            for i in range {
+                let mut job = LayoutJob::default();
+                let num = format!("{:>w$}  ", i + 1, w = digits);
+                job.append(
+                    &num,
+                    0.0,
+                    TextFormat::simple(mono.clone(), palette.text_muted),
+                );
+                match file.highlight.get(i).and_then(|h| h.as_ref()) {
+                    Some(spans) if !spans.is_empty() => {
+                        for span in spans {
+                            let text = span.text.replace('\t', "    ");
+                            let fmt =
+                                TextFormat::simple(mono.clone(), palette.token_color(span.kind));
+                            job.append(&text, 0.0, fmt);
+                        }
+                    }
+                    _ => {
+                        let text = file.lines[i].replace('\t', "    ");
+                        job.append(&text, 0.0, TextFormat::simple(mono.clone(), palette.text));
+                    }
+                }
+                ui.add(Label::new(job).extend());
+            }
+        });
 }
 
 /// The Changes side panel: staged and unstaged files with status letter, path and counts. Clicking
@@ -652,9 +720,9 @@ fn file_header(
 ) {
     let palette = p.palette;
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-        if !read_only {
-            ui.menu_button("...", |ui| {
-                let can = file.status != ChangeStatus::Deleted;
+        ui.menu_button("...", |ui| {
+            let can = file.status != ChangeStatus::Deleted;
+            if !read_only {
                 let item = ui.add_enabled(can, egui::Button::new("Open in editor"));
                 if item.clicked() {
                     p.actions.push(Action::OpenInEditor {
@@ -663,7 +731,14 @@ fn file_header(
                     });
                     ui.close();
                 }
-            });
+            }
+            let item = ui.add_enabled(can, egui::Button::new("View file"));
+            if item.clicked() {
+                p.actions.push(Action::ViewFile(file.path.clone()));
+                ui.close();
+            }
+        });
+        if !read_only {
             let label = if staged { "Unstage" } else { "Stage" };
             if ui.small_button(label).clicked() {
                 p.actions.push(Action::Move {
