@@ -1,7 +1,8 @@
 //! The Changes view (port of `Changes.tsx` and `Comments.tsx`, plus the commit box and file list
 //! of `Sidebar.tsx`).
 //!
-//! All files are stacked PR-style in one scroll area. Diff rows have a fixed height, so only the
+//! All files are stacked PR-style in one scroll area. Long code lines wrap, and a row is a whole
+//! number of text lines tall (computed from the line length, as the font is monospace), so only the
 //! rows inside the viewport are laid out and painted (the others are skipped with one `add_space`);
 //! syntax highlighting and split rows are cached per hunk in `ChangesModel` until the changes
 //! reload. Rows that carry comments or the comment editor are always drawn.
@@ -72,6 +73,7 @@ struct Pass<'a> {
     locked: Option<&'a str>,
     mono: FontId,
     row_h: f32,
+    char_w: f32,
     actions: Vec<Action>,
     scroll_to: Option<String>,
 }
@@ -207,6 +209,12 @@ pub fn show(
     let mut view: ViewState = std::mem::take(&mut changes.view);
     let mono: FontId = egui::TextStyle::Monospace.resolve(ui.style());
     let row_h: f32 = ui.ctx().fonts_mut(|f| f.row_height(&mono)) + 3.0;
+    let char_w: f32 = ui
+        .painter()
+        .layout_no_wrap("M".to_string(), mono.clone(), Color32::WHITE)
+        .size()
+        .x
+        .max(1.0);
 
     let actions: Vec<Action>;
     {
@@ -222,6 +230,7 @@ pub fn show(
             locked: env.agent_block,
             mono,
             row_h,
+            char_w,
             actions: Vec::new(),
             scroll_to,
         };
@@ -840,9 +849,11 @@ fn draw_hunk(
     match mode {
         DiffMode::Unified => {
             for (li, line) in hunk.lines.iter().enumerate() {
+                let code_w = ui.available_width() - 2.0 * NUM_W - 22.0;
                 let blocks = has_block(anchors, Side::Old, line.old_no)
                     || has_block(anchors, Side::New, line.new_no);
-                let rect = match next_row(ui, &mut skipped, row_h, blocks) {
+                let h = wrapped_rows(&line.text, code_w, p.char_w) as f32 * row_h;
+                let rect = match next_row(ui, &mut skipped, h, blocks) {
                     Some(rect) => rect,
                     None => continue,
                 };
@@ -865,6 +876,7 @@ fn draw_hunk(
         }
         DiffMode::Split => {
             let rows = hunk_split_rows(cache, &hunk.lines);
+            let half_code_w = ui.available_width() / 2.0 - NUM_W - 8.0;
             for (ri, pair) in rows.iter().enumerate() {
                 let left: Option<&DiffLine> = pair.0.and_then(|i| hunk.lines.get(i));
                 let right: Option<&DiffLine> = pair.1.and_then(|i| hunk.lines.get(i));
@@ -872,7 +884,9 @@ fn draw_hunk(
                 let right_no: Option<u32> = right.and_then(|l| l.new_no);
                 let blocks = has_block(anchors, Side::Old, left_no)
                     || has_block(anchors, Side::New, right_no);
-                let rect = match next_row(ui, &mut skipped, row_h, blocks) {
+                let n_rows = wrapped_rows(left.map_or("", |l| l.text.as_str()), half_code_w, p.char_w)
+                    .max(wrapped_rows(right.map_or("", |l| l.text.as_str()), half_code_w, p.char_w));
+                let rect = match next_row(ui, &mut skipped, n_rows as f32 * row_h, blocks) {
                     Some(rect) => rect,
                     None => continue,
                 };
@@ -906,6 +920,14 @@ fn draw_hunk(
     flush_skipped(ui, &mut skipped);
 }
 
+/// How many visual rows a code line takes when wrapped (anywhere) in `width` pixels of
+/// monospace text; tabs are drawn as four spaces. Always at least one.
+fn wrapped_rows(text: &str, width: f32, char_w: f32) -> usize {
+    let cols = ((width / char_w) + 1e-3).floor().max(1.0) as usize;
+    let chars: usize = text.chars().map(|c| if c == '\t' { 4 } else { 1 }).sum();
+    chars.div_ceil(cols).max(1)
+}
+
 fn paint_code(
     ui: &egui::Ui,
     p: &Pass<'_>,
@@ -931,8 +953,10 @@ fn paint_code(
             job.append(&text, 0.0, format);
         }
     }
+    job.wrap.max_width = rect.width();
+    job.wrap.break_anywhere = true;
     let galley = ui.painter().layout_job(job);
-    let pos = pos2(rect.left(), rect.center().y - galley.size().y / 2.0);
+    let pos = pos2(rect.left(), rect.top() + 1.5);
     ui.painter_at(rect).galley(pos, galley, p.palette.text);
 }
 
@@ -1016,10 +1040,10 @@ fn paint_unified_row(
     if old_selected || new_selected {
         painter.rect_filled(rect, 0.0, palette.select_bg);
     }
-    let old_cell = Rect::from_min_size(rect.min, vec2(NUM_W, rect.height()));
+    let old_cell = Rect::from_min_size(rect.min, vec2(NUM_W, p.row_h));
     let new_cell = Rect::from_min_size(
         pos2(rect.left() + NUM_W, rect.top()),
-        vec2(NUM_W, rect.height()),
+        vec2(NUM_W, p.row_h),
     );
     number_cell(ui, p, fc, old_cell, Side::Old, line.old_no, salt);
     number_cell(ui, p, fc, new_cell, Side::New, line.new_no, salt);
@@ -1030,7 +1054,7 @@ fn paint_unified_row(
     };
     let code_left = rect.left() + 2.0 * NUM_W + 6.0;
     painter.text(
-        pos2(code_left + 2.0, rect.center().y),
+        pos2(code_left + 2.0, rect.top() + p.row_h / 2.0),
         Align2::LEFT_CENTER,
         sign,
         p.mono.clone(),
@@ -1080,7 +1104,7 @@ fn paint_split_half(
     if selected {
         painter.rect_filled(rect, 0.0, palette.select_bg);
     }
-    let cell = Rect::from_min_size(rect.min, vec2(NUM_W, rect.height()));
+    let cell = Rect::from_min_size(rect.min, vec2(NUM_W, p.row_h));
     number_cell(ui, p, fc, cell, side, no, salt);
     let code_rect = Rect::from_min_max(pos2(rect.left() + NUM_W + 8.0, rect.top()), rect.max);
     paint_code(ui, p, code_rect, line, spans);
@@ -1425,6 +1449,14 @@ mod tests {
         assert!(has_block(&set, Side::Old, Some(7)));
         assert!(!has_block(&set, Side::New, Some(7)));
         assert!(!has_block(&set, Side::Old, None));
+    }
+
+    #[test]
+    fn long_lines_wrap_into_more_rows() {
+        assert_eq!(wrapped_rows("", 100.0, 10.0), 1);
+        assert_eq!(wrapped_rows("0123456789", 100.0, 10.0), 1);
+        assert_eq!(wrapped_rows("01234567890", 100.0, 10.0), 2);
+        assert_eq!(wrapped_rows("\t\t", 40.0, 10.0), 2);
     }
 
     #[test]
