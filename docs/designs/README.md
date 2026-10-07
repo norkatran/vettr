@@ -18,3 +18,4 @@ Every feature that adds something new to vettr, or improves an existing part, ge
 | 0005 | [File watcher respects .gitignore](0005-watcher-respects-gitignore.md) | Fulfilled |
 | 0006 | [Credential profiles](0006-credential-profiles.md) | Fulfilled |
 | 0007 | [Rewrite in Rust with egui](0007-rust-egui-rewrite.md) | Fulfilled |
+| 0008 | [Sandbox installs](0008-sandbox-installs.md) | Fulfilled |
