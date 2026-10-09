@@ -307,6 +307,7 @@ fn finish(
         Err(message) => (None, Some(format!("Could not run Docker: {}", message))),
     };
     let stop_requested;
+    let was_active;
     {
         let mut inner = lock(&shared.inner);
         if inner.generation != generation {
@@ -315,10 +316,17 @@ fn finish(
             return;
         }
         inner.container = None;
+        was_active = inner.active;
         inner.active = false;
         inner.warm_cwd = None;
         inner.warm_resume = None;
         stop_requested = inner.stop_requested;
+    }
+    if stop_requested && !was_active {
+        // An idle prewarmed agent was stopped on purpose (e.g. to swap in one that resumes a
+        // stored session). No session was running, and reporting an exit would flip the UI of
+        // the session that is being resumed back to "ended".
+        return;
     }
     let message: Option<String> = match failure {
         Some(f) => Some(f),
