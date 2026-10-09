@@ -21,8 +21,8 @@ use egui::{
 
 use super::changes_model::{
     can_commit, draft_ends_at, draft_selects, file_key, file_paths, first_line, pick_draft,
-    row_visible, since_key, split_index_rows, status_label, status_letter, ChangesModel, DiffMode, FileViewer,
-    DraftState, HunkCache, NewComment, ReviewModel, Scope, ViewState,
+    row_visible, since_key, split_index_rows, status_label, status_letter, ChangesModel, DiffMode,
+    DraftState, FileViewer, HunkCache, NewComment, ReviewModel, Scope, ViewState,
 };
 use super::notifications::Notifier;
 use super::palette::{primary_button, Palette};

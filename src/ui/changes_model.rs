@@ -496,24 +496,21 @@ impl ChangesModel {
         let Some(project) = self.project.clone() else {
             return;
         };
-        let content = self
-            .backend
-            .read_project_file(&project, &path)
-            .map(|text| {
-                let lines: Vec<String> = text.lines().map(str::to_string).collect();
-                let diff_lines: Vec<DiffLine> = lines
-                    .iter()
-                    .enumerate()
-                    .map(|(i, t)| DiffLine {
-                        kind: LineKind::Context,
-                        old_no: Some(i as u32 + 1),
-                        new_no: Some(i as u32 + 1),
-                        text: t.clone(),
-                    })
-                    .collect();
-                let highlight = crate::highlight::highlight_hunk(&path, &diff_lines);
-                ViewedFile { lines, highlight }
-            });
+        let content = self.backend.read_project_file(&project, &path).map(|text| {
+            let lines: Vec<String> = text.lines().map(str::to_string).collect();
+            let diff_lines: Vec<DiffLine> = lines
+                .iter()
+                .enumerate()
+                .map(|(i, t)| DiffLine {
+                    kind: LineKind::Context,
+                    old_no: Some(i as u32 + 1),
+                    new_no: Some(i as u32 + 1),
+                    text: t.clone(),
+                })
+                .collect();
+            let highlight = crate::highlight::highlight_hunk(&path, &diff_lines);
+            ViewedFile { lines, highlight }
+        });
         self.viewer = Some(FileViewer { path, content });
     }
 

@@ -53,6 +53,13 @@ packaging/linux/install-desktop.sh   # Linux: installs the icon and desktop entr
 
 The app also builds the sandbox image on first run if it is missing, as long as the runner bundle (`runner/dist/runner.mjs`) has been built.
 
+Open a repository directly, optionally with a saved credential profile:
+
+```sh
+vettr ~/projects/my-repo                    # or: cargo run --release -- ~/projects/my-repo
+vettr --profile Work ~/projects/my-repo     # use the "Work" profile for this launch only
+```
+
 Run the tests with:
 
 ```sh

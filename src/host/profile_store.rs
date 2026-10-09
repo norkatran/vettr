@@ -223,6 +223,11 @@ impl ProfileStore {
         *self.active.lock().unwrap() = seed;
     }
 
+    /// Use `id` in this process only, without remembering it for the next launch.
+    pub fn select(&self, id: &str) {
+        *self.active.lock().unwrap() = Some(id.to_string());
+    }
+
     /// The active profile id if it still exists in the file (another instance may have removed it).
     pub fn active_id(&self) -> Option<String> {
         let current = self.active.lock().unwrap().clone();
@@ -433,6 +438,19 @@ mod tests {
         assert_eq!(store.list(), vec![info("b", "B")]);
         assert_eq!(store.last_used_id(), Some("b".to_string()));
         assert_eq!(store.credential("b"), None);
+    }
+
+    #[test]
+    fn select_switches_this_process_without_remembering_it() {
+        let (dir, secrets, store) = setup();
+        let a = store.add("A", "k1").unwrap();
+        let b = store.add("B", "k2").unwrap();
+        store.init_active();
+        store.select(&b);
+        assert_eq!(store.active_credential(), Some("k2".to_string()));
+        let next = ProfileStore::new(dir.path(), Arc::new(secrets));
+        next.init_active();
+        assert_eq!(next.active_id(), Some(a));
     }
 
     #[test]

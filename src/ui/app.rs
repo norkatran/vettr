@@ -17,6 +17,7 @@ use super::settings_view::{self, SettingsEnv, SettingsViewState};
 use super::sidebar::{self, SidebarAction, SidebarEnv, SidebarState, View};
 use super::status_bar::{self, StatusBarAction, StatusBarEnv, StatusBarState};
 use crate::backend::{Backend, BackendEvent};
+use crate::cli::LaunchOptions;
 use crate::comments::format_review;
 use crate::profiles::ProfilesState;
 use crate::readiness::{readiness_block_reason, Readiness};
@@ -71,9 +72,18 @@ impl VettrApp {
         VettrApp::with_context(cc.egui_ctx.clone())
     }
 
+    /// Build the app for the command-line `launch` options.
+    pub fn with_launch(cc: &eframe::CreationContext<'_>, launch: &LaunchOptions) -> VettrApp {
+        VettrApp::with_context_and_launch(cc.egui_ctx.clone(), launch)
+    }
+
     /// Build the app on an egui context (tests use a headless one).
     pub fn with_context(ctx: egui::Context) -> VettrApp {
-        let backend = Backend::new(&ctx);
+        VettrApp::with_context_and_launch(ctx, &LaunchOptions::default())
+    }
+
+    pub fn with_context_and_launch(ctx: egui::Context, launch: &LaunchOptions) -> VettrApp {
+        let backend = Backend::new(&ctx, launch);
         let notifier = Notifier::new();
         let mut app = VettrApp {
             changes: ChangesModel::new(&ctx, &backend, &notifier),

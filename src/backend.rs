@@ -12,6 +12,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::agent::{AgentAdapter, AgentEvent, SlashCommandInfo};
+use crate::cli::{find_profile, LaunchOptions};
 use crate::diff::{FileChange, RepoChanges};
 use crate::editor::build_editor_command;
 use crate::git_actions::{Branch, GitAction};
@@ -201,6 +202,54 @@ fn confirm_stop(detail: &str, confirm_label: &str) -> bool {
     }
 }
 
+/// Check that `--profile` names a saved profile, so `main` can refuse to start before opening a
+/// window. The error lists the available names.
+pub fn check_launch_profile(wanted: &str) -> Result<(), String> {
+    let store = ProfileStore::new(&data_dir(), Arc::new(KeyringStore::new()));
+    let profiles = store.list();
+    if find_profile(&profiles, wanted).is_some() {
+        return Ok(());
+    }
+    let names: Vec<&str> = profiles.iter().map(|p| p.name.as_str()).collect();
+    Err(if names.is_empty() {
+        format!("no profile named '{wanted}' (no profiles are saved yet)")
+    } else {
+        format!(
+            "no profile named '{wanted}' (available: {})",
+            names.join(", ")
+        )
+    })
+}
+
+/// Apply `--profile` and the project argument. `main` has already checked the profile exists.
+/// A non-git project is reported (stderr and a dialog) and the persisted project stays. The
+/// profile is not remembered for the next launch.
+fn apply_launch_options(
+    launch: &LaunchOptions,
+    profiles: &ProfileStore,
+    projects: &mut ProjectStore,
+) {
+    if let Some(wanted) = &launch.profile {
+        match find_profile(&profiles.list(), wanted) {
+            Some(id) => profiles.select(&id),
+            // Only if another instance removed it since `check_launch_profile`
+            None => eprintln!("vettr: no profile named '{wanted}'"),
+        }
+    }
+    if let Some(path) = &launch.project {
+        match git::find_repo_root(path) {
+            Some(root) => projects.set_current_project(&root),
+            None => {
+                eprintln!("vettr: {path} is not inside a git repository");
+                show_error(
+                    &format!("{path} is not a git repository."),
+                    "Choose a folder that is inside a git repository.",
+                );
+            }
+        }
+    }
+}
+
 fn show_error(message: &str, detail: &str) {
     let _ = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
@@ -249,7 +298,7 @@ pub struct Backend {
 
 impl Backend {
     /// Build the services, load the persisted state and start working on the launch project.
-    pub fn new(ctx: &egui::Context) -> Backend {
+    pub fn new(ctx: &egui::Context, launch: &LaunchOptions) -> Backend {
         let dir = data_dir();
         let _ = fs::create_dir_all(&dir);
 
@@ -267,6 +316,7 @@ impl Backend {
         let secrets: Arc<dyn SecretStore> = Arc::new(KeyringStore::new());
         let profiles = Arc::new(ProfileStore::new(&dir, secrets));
         profiles.init_active();
+        apply_launch_options(launch, &profiles, &mut project_store);
 
         // The adapter talks to the container.
         let check_docker_dep: Box<dyn Fn() -> Option<String> + Send + Sync> =

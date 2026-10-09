@@ -2,6 +2,7 @@
 
 // Protocol and pure logic (ports of `src/shared/*.ts`).
 pub mod agent;
+pub mod cli;
 pub mod comments;
 pub mod credential;
 pub mod diff;

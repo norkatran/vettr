@@ -1,8 +1,27 @@
 //! vettr: agent-first review IDE (pronounced "vetter").
 
+use vettr::cli::{self, Parsed};
 use vettr::ui::app::VettrApp;
 
 fn main() -> eframe::Result {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let launch = match cli::parse(std::env::args().skip(1), &cwd) {
+        Ok(Parsed::Run(launch)) => launch,
+        Ok(Parsed::Print(text)) => {
+            println!("{text}");
+            return Ok(());
+        }
+        Err(message) => {
+            eprintln!("vettr: {message}\n\n{}", cli::USAGE);
+            std::process::exit(2);
+        }
+    };
+    if let Some(wanted) = &launch.profile {
+        if let Err(message) = vettr::backend::check_launch_profile(wanted) {
+            eprintln!("vettr: {message}");
+            std::process::exit(2);
+        }
+    }
     let mut viewport = egui::ViewportBuilder::default()
         .with_title("vettr")
         .with_app_id("vettr")
@@ -20,6 +39,6 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "vettr",
         options,
-        Box::new(|cc| Ok(Box::new(VettrApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(VettrApp::with_launch(cc, &launch)))),
     )
 }

@@ -229,7 +229,13 @@ pub fn discard_files(dir: impl AsRef<Path>, paths: &[String]) -> Result<(), Stri
     for path in paths {
         let tracked = run_git(
             dir,
-            &["--literal-pathspecs", "ls-files", "--error-unmatch", "--", path.as_str()],
+            &[
+                "--literal-pathspecs",
+                "ls-files",
+                "--error-unmatch",
+                "--",
+                path.as_str(),
+            ],
             &[],
         )
         .is_ok();
