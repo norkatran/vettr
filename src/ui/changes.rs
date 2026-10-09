@@ -16,7 +16,7 @@ use std::sync::Arc;
 use egui::text::{LayoutJob, TextFormat};
 use egui::{
     pos2, vec2, Align, Align2, Color32, CornerRadius, CursorIcon, FontId, Frame, Id, Key, Label,
-    Layout, Margin, Modifiers, Rect, RichText, Sense, Stroke, TextEdit,
+    LayerId, Layout, Margin, Modifiers, Rect, RichText, Sense, Stroke, TextEdit, UiBuilder,
 };
 
 use super::changes_model::{
@@ -353,14 +353,11 @@ fn draw_viewer(ui: &mut egui::Ui, viewer: &FileViewer, palette: &Palette) {
     egui::ScrollArea::both()
         .auto_shrink([false, false])
         .show_rows(ui, row_h, file.lines.len(), |ui, range| {
+            // Keep each row exactly `row_h` tall so the virtual scrolling stays aligned.
+            ui.spacing_mut().interact_size.y = row_h;
             for i in range {
                 let mut job = LayoutJob::default();
                 let num = format!("{:>w$}  ", i + 1, w = digits);
-                job.append(
-                    &num,
-                    0.0,
-                    TextFormat::simple(mono.clone(), palette.text_muted),
-                );
                 match file.highlight.get(i).and_then(|h| h.as_ref()) {
                     Some(spans) if !spans.is_empty() => {
                         for span in spans {
@@ -375,7 +372,16 @@ fn draw_viewer(ui: &mut egui::Ui, viewer: &FileViewer, palette: &Palette) {
                         job.append(&text, 0.0, TextFormat::simple(mono.clone(), palette.text));
                     }
                 }
-                ui.add(Label::new(job).extend());
+                // The number is its own unselectable label so copies contain only the code.
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 0.0;
+                    ui.add(
+                        Label::new(RichText::new(num).font(mono.clone()).color(palette.text_muted))
+                            .selectable(false),
+                    );
+                    let r = ui.add(Label::new(job).extend());
+                    super::markdown::copy_menu(r, &file.lines[i]);
+                });
             }
         });
 }
@@ -1053,9 +1059,13 @@ fn wrapped_rows(text: &str, width: f32, char_w: f32) -> usize {
     chars.div_ceil(cols).max(1)
 }
 
+/// Draw a diff line's code as selectable text (drag to select, right-click to copy). The
+/// line-number and +/- gutters are painted separately, so they are never part of a copy.
 fn paint_code(
-    ui: &egui::Ui,
+    ui: &mut egui::Ui,
     p: &Pass<'_>,
+    id: Id,
+    lane: u8,
     rect: Rect,
     line: &DiffLine,
     spans: Option<&HighlightedLine>,
@@ -1082,7 +1092,30 @@ fn paint_code(
     job.wrap.break_anywhere = true;
     let galley = ui.painter().layout_job(job);
     let pos = pos2(rect.left(), rect.top() + 1.5);
-    ui.painter_at(rect).galley(pos, galley, p.palette.text);
+    // egui keeps one text selection per layer, and otherwise treats every label painted between the
+    // two ends of a drag as selected. Each side of a split diff therefore gets its own sublayer of
+    // the diff's layer (same order, so it stays under windows and popups and still scrolls with the
+    // parent), which stops a drag in one panel from selecting text in the other.
+    let parent = ui.layer_id();
+    let layer = LayerId::new(parent.order, Id::new(("diff-code", parent, lane)));
+    ui.ctx().set_sublayer(parent, layer);
+    let clip = ui.clip_rect().intersect(rect);
+    let mut cell = ui.new_child(UiBuilder::new().layer_id(layer).max_rect(rect));
+    cell.set_clip_rect(clip);
+    let ui = &cell;
+    let response = ui.interact(rect, id, Sense::click_and_drag());
+    if response.hovered() {
+        ui.set_cursor_icon(CursorIcon::Text);
+    }
+    egui::text_selection::LabelSelectionState::label_text_selection(
+        ui,
+        &response,
+        pos,
+        galley,
+        p.palette.text,
+        Stroke::NONE,
+    );
+    super::markdown::copy_menu(response, &line.text);
 }
 
 /// A line number; clicking it comments on the line, shift-click extends the range.
@@ -1134,7 +1167,7 @@ fn number_cell(
 }
 
 fn paint_unified_row(
-    ui: &egui::Ui,
+    ui: &mut egui::Ui,
     p: &mut Pass<'_>,
     fc: &FileCtx<'_>,
     rect: Rect,
@@ -1183,12 +1216,13 @@ fn paint_unified_row(
         palette.text_muted,
     );
     let code_rect = Rect::from_min_max(pos2(code_left + 16.0, rect.top()), rect.max);
-    paint_code(ui, p, code_rect, line, spans);
+    let id = fc.base_id.with((salt, "code"));
+    paint_code(ui, p, id, 0, code_rect, line, spans);
 }
 
 #[allow(clippy::too_many_arguments)]
 fn paint_split_half(
-    ui: &egui::Ui,
+    ui: &mut egui::Ui,
     p: &mut Pass<'_>,
     fc: &FileCtx<'_>,
     rect: Rect,
@@ -1229,7 +1263,8 @@ fn paint_split_half(
     let cell = Rect::from_min_size(rect.min, vec2(NUM_W, p.row_h));
     number_cell(ui, p, fc, cell, side, no, salt);
     let code_rect = Rect::from_min_max(pos2(rect.left() + NUM_W + 8.0, rect.top()), rect.max);
-    paint_code(ui, p, code_rect, line, spans);
+    let id = fc.base_id.with((salt, side == Side::Old, "code"));
+    paint_code(ui, p, id, if side == Side::Old { 1 } else { 2 }, code_rect, line, spans);
 }
 
 // ----- comments -----
