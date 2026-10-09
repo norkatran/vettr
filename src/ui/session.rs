@@ -558,7 +558,9 @@ fn user_bubble(ui: &mut egui::Ui, palette: &Palette, text: &str) {
             .inner_margin(Margin::symmetric(14, 10))
             .show(ui, |ui| {
                 ui.with_layout(Layout::top_down(Align::Min), |ui| {
-                    ui.add(Label::new(RichText::new(text).color(palette.text_on_accent)).wrap());
+                    let r = ui
+                        .add(Label::new(RichText::new(text).color(palette.text_on_accent)).wrap());
+                    super::markdown::copy_menu(r, text);
                 });
             });
     });
@@ -720,7 +722,9 @@ fn comment_card(
                         );
                     });
             }
-            ui.add(Label::new(RichText::new(&comment.text).color(palette.text_strong)).wrap());
+            let r =
+                ui.add(Label::new(RichText::new(&comment.text).color(palette.text_strong)).wrap());
+            super::markdown::copy_menu(r, &comment.text);
             for reply in replies.iter() {
                 reply_bubble(ui, palette, reply, None);
             }

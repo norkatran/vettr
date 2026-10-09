@@ -21,6 +21,32 @@ fn blocks_ui(ui: &mut egui::Ui, palette: &Palette, blocks: &[Block]) {
     }
 }
 
+/// Attach a right-click menu to a label: copy the text that was selected when the menu opened
+/// (see `selection_copy`), or the whole block.
+pub fn copy_menu(response: egui::Response, text: &str) -> egui::Response {
+    response.context_menu(|ui| {
+        let selected = super::selection_copy::SelectionCopy::selected(ui.ctx());
+        if let Some(selected) = selected {
+            if ui.button("Copy selection").clicked() {
+                ui.ctx().copy_text(selected);
+                ui.close();
+            }
+            if ui.button("Copy all").clicked() {
+                ui.ctx().copy_text(text.to_owned());
+                ui.close();
+            }
+        } else if ui.button("Copy").clicked() {
+            ui.ctx().copy_text(text.to_owned());
+            ui.close();
+        }
+    });
+    response
+}
+
+fn plain(spans: &[Span]) -> String {
+    spans.iter().map(|s| s.text.as_str()).collect()
+}
+
 fn job(palette: &Palette, spans: &[Span], size: f32, heading: bool) -> LayoutJob {
     let mut job = LayoutJob::default();
     for span in spans {
@@ -59,7 +85,8 @@ fn job(palette: &Palette, spans: &[Span], size: f32, heading: bool) -> LayoutJob
 fn block_ui(ui: &mut egui::Ui, palette: &Palette, block: &Block) {
     match block {
         Block::Paragraph(spans) => {
-            ui.add(Label::new(job(palette, spans, BODY, false)).wrap());
+            let r = ui.add(Label::new(job(palette, spans, BODY, false)).wrap());
+            copy_menu(r, &plain(spans));
             ui.add_space(4.0);
         }
         Block::Heading(level, spans) => {
@@ -70,7 +97,8 @@ fn block_ui(ui: &mut egui::Ui, palette: &Palette, block: &Block) {
                 _ => BODY,
             };
             ui.add_space(4.0);
-            ui.add(Label::new(job(palette, spans, size, true)).wrap());
+            let r = ui.add(Label::new(job(palette, spans, size, true)).wrap());
+            copy_menu(r, &plain(spans));
             ui.add_space(4.0);
         }
         Block::Code { text, .. } => {
@@ -80,7 +108,7 @@ fn block_ui(ui: &mut egui::Ui, palette: &Palette, block: &Block) {
                 .inner_margin(Margin::symmetric(10, 8))
                 .show(ui, |ui| {
                     ui.set_min_width(ui.available_width());
-                    ui.add(
+                    let r = ui.add(
                         Label::new(
                             RichText::new(text)
                                 .monospace()
@@ -89,6 +117,7 @@ fn block_ui(ui: &mut egui::Ui, palette: &Palette, block: &Block) {
                         )
                         .wrap(),
                     );
+                    copy_menu(r, text);
                 });
             ui.add_space(4.0);
         }
@@ -180,14 +209,17 @@ fn table_ui(ui: &mut egui::Ui, palette: &Palette, aligns: &[Alignment], rows: &[
                                     Some(Alignment::Right) => egui::Align::Max,
                                     _ => egui::Align::Min,
                                 };
-                                let mut j = job(palette, &styled(r, cell), BODY, false);
+                                let styled_cell = styled(r, cell);
+                                let cell_text = plain(&styled_cell);
+                                let mut j = job(palette, &styled_cell, BODY, false);
                                 j.halign = halign;
                                 ui.allocate_ui_with_layout(
                                     egui::vec2(*w, 0.0),
                                     egui::Layout::top_down(egui::Align::Min),
                                     |ui| {
                                         ui.set_width(*w);
-                                        ui.add(Label::new(j).wrap());
+                                        let resp = ui.add(Label::new(j).wrap());
+                                        copy_menu(resp, &cell_text);
                                     },
                                 );
                             }

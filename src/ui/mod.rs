@@ -12,6 +12,7 @@ pub mod notifications;
 pub mod palette;
 pub mod readiness_notices;
 pub mod replies;
+pub mod selection_copy;
 pub mod session;
 pub mod settings_view;
 pub mod sidebar;

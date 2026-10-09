@@ -83,6 +83,7 @@ impl VettrApp {
     }
 
     pub fn with_context_and_launch(ctx: egui::Context, launch: &LaunchOptions) -> VettrApp {
+        super::selection_copy::SelectionCopy::install(&ctx);
         let backend = Backend::new(&ctx, launch);
         let notifier = Notifier::new();
         let mut app = VettrApp {
