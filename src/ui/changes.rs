@@ -59,6 +59,7 @@ enum Action {
     Move { stage: bool, paths: Vec<String> },
     OpenInEditor { path: String, line: u32 },
     ViewFile(String),
+    AskDiscard { path: String, paths: Vec<String> },
     Add(NewComment),
     Edit { id: String, text: String },
     Remove(String),
@@ -265,13 +266,53 @@ pub fn show(
             }
             Action::OpenInEditor { path, line } => changes.open_in_editor(path, line),
             Action::ViewFile(path) => changes.view_file(path),
+            Action::AskDiscard { path, paths } => changes.pending_discard = Some((path, paths)),
             Action::Add(comment) => review.add(comment),
             Action::Edit { id, text } => review.edit(&id, &text),
             Action::Remove(id) => review.remove(&id),
         }
     }
     show_viewer(ui.ctx(), changes, palette);
+    show_discard_confirm(ui.ctx(), changes);
     out
+}
+
+/// Asks for confirmation before a file's changes are thrown away.
+fn show_discard_confirm(ctx: &egui::Context, changes: &mut ChangesModel) {
+    let Some((path, paths)) = changes.pending_discard.clone() else {
+        return;
+    };
+    let mut open = true;
+    let mut decision: Option<bool> = None;
+    egui::Window::new("Discard changes?")
+        .id(Id::new("discard-confirm"))
+        .open(&mut open)
+        .collapsible(false)
+        .resizable(false)
+        .anchor(egui::Align2::CENTER_CENTER, vec2(0.0, 0.0))
+        .show(ctx, |ui| {
+            ui.label(format!(
+                "All changes to {path} (staged and unstaged) will be lost. This cannot be undone."
+            ));
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                if ui.button("Discard").clicked() {
+                    decision = Some(true);
+                }
+                if ui.button("Cancel").clicked() {
+                    decision = Some(false);
+                }
+            });
+        });
+    if ctx.input(|i| i.key_pressed(Key::Escape)) {
+        decision = Some(false);
+    }
+    if decision == Some(true) {
+        changes.discard(paths);
+    }
+    if decision.is_some() || !open {
+        changes.pending_discard = None;
+    }
 }
 
 /// The read-only file viewer modal: scrollable, syntax highlighted, one virtualized row per line.
@@ -735,6 +776,13 @@ fn file_header(
             let item = ui.add_enabled(can, egui::Button::new("View file"));
             if item.clicked() {
                 p.actions.push(Action::ViewFile(file.path.clone()));
+                ui.close();
+            }
+            if !read_only && ui.button("Discard changes...").clicked() {
+                p.actions.push(Action::AskDiscard {
+                    path: file.path.clone(),
+                    paths: file_paths(file),
+                });
                 ui.close();
             }
         });

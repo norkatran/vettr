@@ -366,6 +366,7 @@ impl ReviewModel {
 enum OpKind {
     Stage,
     Unstage,
+    Discard,
     Commit,
     Editor,
 }
@@ -450,6 +451,8 @@ pub struct ChangesModel {
     pub(super) commit: CommitState,
     /// The file shown in the read-only viewer modal, if open.
     pub viewer: Option<FileViewer>,
+    /// The file (display path, and all paths to revert) awaiting confirmation to be discarded.
+    pub pending_discard: Option<(String, Vec<String>)>,
 }
 
 /// A file open in the viewer modal: its text split into lines, with syntax highlighting.
@@ -484,6 +487,7 @@ impl ChangesModel {
             view: ViewState::default(),
             commit: CommitState::default(),
             viewer: None,
+            pending_discard: None,
         }
     }
 
@@ -601,6 +605,13 @@ impl ChangesModel {
     pub fn unstage(&mut self, paths: Vec<String>) {
         self.spawn_op(OpKind::Unstage, move |backend: Backend, project: String| {
             backend.unstage(&project, &paths)
+        });
+    }
+
+    /// Throw away all changes (staged and unstaged) to files. Irreversible: callers confirm first.
+    pub fn discard(&mut self, paths: Vec<String>) {
+        self.spawn_op(OpKind::Discard, move |backend: Backend, project: String| {
+            backend.discard(&project, &paths)
         });
     }
 
@@ -767,6 +778,7 @@ impl ChangesModel {
             match (kind, result) {
                 (OpKind::Stage, Err(msg)) => self.notifier.notify("Stage failed", &msg),
                 (OpKind::Unstage, Err(msg)) => self.notifier.notify("Unstage failed", &msg),
+                (OpKind::Discard, Err(msg)) => self.notifier.notify("Discard failed", &msg),
                 (OpKind::Editor, Err(msg)) => self.notifier.notify("Open in editor failed", &msg),
                 (OpKind::Commit, Err(msg)) => {
                     // Keep the typed message so nothing is lost

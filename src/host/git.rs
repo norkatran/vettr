@@ -219,6 +219,30 @@ pub fn unstage_files(dir: impl AsRef<Path>, paths: &[String]) -> Result<(), Stri
     index_op(dir.as_ref(), &["reset", "-q"], paths)
 }
 
+/// Throw away all changes to whole files, staged and unstaged: tracked files go back to `HEAD`,
+/// files that are not in `HEAD` (new or untracked) are deleted. For a rename pass both the old
+/// and new path. This cannot be undone.
+pub fn discard_files(dir: impl AsRef<Path>, paths: &[String]) -> Result<(), String> {
+    let dir = dir.as_ref();
+    // Drop anything staged first (also works before the first commit)
+    index_op(dir, &["reset", "-q"], paths)?;
+    for path in paths {
+        let tracked = run_git(
+            dir,
+            &["--literal-pathspecs", "ls-files", "--error-unmatch", "--", path.as_str()],
+            &[],
+        )
+        .is_ok();
+        let args: &[&str] = if tracked {
+            &["checkout", "-q"]
+        } else {
+            &["clean", "-fdq"]
+        };
+        index_op(dir, args, std::slice::from_ref(path))?;
+    }
+    Ok(())
+}
+
 /// Commit what is staged with the user's message, using the host's `git` and hooks. Err holds
 /// git's message (nothing staged, a hook rejected it, ...). The message is a single argument,
 /// never run through a shell.
@@ -686,6 +710,27 @@ mod tests {
         assert_eq!(status(p), "A  a.txt\n");
         assert_eq!(unstage_files(p, &strs(&["a.txt"])), Ok(()));
         assert_eq!(status(p), "?? a.txt\n");
+    }
+
+    #[test]
+    fn discards_tracked_changes_and_removes_new_files() {
+        let r = root();
+        let p = &r.path;
+        init(p);
+        write(p, "mod.txt", "a\n");
+        write(p, "del.txt", "a\n");
+        commit_all(p);
+        write(p, "mod.txt", "b\n");
+        fs::remove_file(p.join("del.txt")).unwrap();
+        write(p, "new.txt", "n\n");
+        write(p, "staged.txt", "s\n");
+        assert_eq!(stage_files(p, &strs(&["mod.txt", "staged.txt"])), Ok(()));
+        let all = strs(&["mod.txt", "del.txt", "new.txt", "staged.txt"]);
+        assert_eq!(discard_files(p, &all), Ok(()));
+        assert_eq!(status(p), "");
+        assert_eq!(fs::read_to_string(p.join("mod.txt")).unwrap(), "a\n");
+        assert!(!p.join("new.txt").exists());
+        assert!(!p.join("staged.txt").exists());
     }
 
     #[test]

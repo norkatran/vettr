@@ -501,6 +501,10 @@ impl Backend {
         git::unstage_files(project, paths)
     }
 
+    pub fn discard(&self, project: &str, paths: &[String]) -> Result<(), String> {
+        git::discard_files(project, paths)
+    }
+
     pub fn commit(&self, project: &str, message: &str) -> Result<(), String> {
         git::commit_staged(project, message)
     }
