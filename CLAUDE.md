@@ -1,6 +1,6 @@
 # vettr
 
-Agent-first review IDE built with Electron + TypeScript + React.
+Agent-first review IDE built in Rust with egui (eframe). The agent runner in `runner/` is TypeScript and runs inside a Docker sandbox (`sandbox/`).
 
 ## Read these first
 
