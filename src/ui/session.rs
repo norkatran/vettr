@@ -548,6 +548,8 @@ fn show_item(
 }
 
 fn user_bubble(ui: &mut egui::Ui, palette: &Palette, text: &str) {
+    // The bubble hugs the right edge, but its text is left-aligned so pasted Markdown and fenced
+    // code stay readable (the outer Max layout would otherwise be inherited by the label).
     ui.with_layout(Layout::top_down(Align::Max), |ui| {
         ui.set_max_width(ui.available_width() * 0.85);
         Frame::new()
@@ -555,7 +557,9 @@ fn user_bubble(ui: &mut egui::Ui, palette: &Palette, text: &str) {
             .corner_radius(CornerRadius::same(6))
             .inner_margin(Margin::symmetric(14, 10))
             .show(ui, |ui| {
-                ui.add(Label::new(RichText::new(text).color(palette.text_on_accent)).wrap());
+                ui.with_layout(Layout::top_down(Align::Min), |ui| {
+                    ui.add(Label::new(RichText::new(text).color(palette.text_on_accent)).wrap());
+                });
             });
     });
 }

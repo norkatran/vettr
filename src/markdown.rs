@@ -1,6 +1,7 @@
 //! Markdown for agent prose (design 0009): a small pure parser from CommonMark text to a block
 //! tree the UI can draw (`src/ui/markdown.rs`). Raw HTML is kept as plain text, never interpreted.
 
+pub use pulldown_cmark::Alignment;
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 
 /// A run of inline text with one style.
@@ -29,6 +30,11 @@ pub enum Block {
         items: Vec<Vec<Block>>,
     },
     Rule,
+    /// Column alignments and rows of cells; the first row is the header.
+    Table {
+        aligns: Vec<Alignment>,
+        rows: Vec<Vec<Vec<Span>>>,
+    },
 }
 
 enum Container {
@@ -80,12 +86,15 @@ fn push_text(inline: &mut Vec<Span>, style: &Style, text: &str, code: bool) {
 
 /// Parse CommonMark (plus strikethrough and task lists) into blocks.
 pub fn parse(source: &str) -> Vec<Block> {
-    let options = Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
+    let options =
+        Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS | Options::ENABLE_TABLES;
     let mut stack = vec![Container::Root(Vec::new())];
     let mut inline: Vec<Span> = Vec::new();
     let mut style = Style::default();
     let mut code: Option<(Option<String>, String)> = None;
     let mut heading: Option<u8> = None;
+    let mut table: Option<(Vec<Alignment>, Vec<Vec<Vec<Span>>>)> = None;
+    let mut row: Vec<Vec<Span>> = Vec::new();
 
     for event in Parser::new_ext(source, options) {
         match event {
@@ -118,6 +127,12 @@ pub fn parse(source: &str) -> Vec<Block> {
                     flush(&mut stack, &mut inline);
                     stack.push(Container::Item(Vec::new()));
                 }
+                Tag::Table(aligns) => {
+                    flush(&mut stack, &mut inline);
+                    table = Some((aligns, Vec::new()));
+                }
+                Tag::TableHead | Tag::TableRow => row.clear(),
+                Tag::TableCell => inline.clear(),
                 Tag::Emphasis => style.italic += 1,
                 Tag::Strong => style.bold += 1,
                 Tag::Strikethrough => style.strike += 1,
@@ -154,6 +169,17 @@ pub fn parse(source: &str) -> Vec<Block> {
                         if let Some(Container::List { items, .. }) = stack.last_mut() {
                             items.push(blocks);
                         }
+                    }
+                }
+                TagEnd::TableCell => row.push(std::mem::take(&mut inline)),
+                TagEnd::TableHead | TagEnd::TableRow => {
+                    if let Some((_, rows)) = table.as_mut() {
+                        rows.push(std::mem::take(&mut row));
+                    }
+                }
+                TagEnd::Table => {
+                    if let Some((aligns, rows)) = table.take() {
+                        push_block(&mut stack, Block::Table { aligns, rows });
                     }
                 }
                 TagEnd::Emphasis => style.italic = style.italic.saturating_sub(1),
@@ -217,6 +243,31 @@ mod tests {
             panic!()
         };
         assert!(second[1].italic);
+    }
+
+    #[test]
+    fn tables() {
+        let blocks = parse("| a | b |\n| --- | --- |\n| **x** | y |\n\nafter");
+        let Block::Table { aligns, rows } = &blocks[0] else {
+            panic!("{blocks:?}")
+        };
+        assert_eq!(aligns, &[Alignment::None, Alignment::None]);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(plain(&rows[0][1]), "b");
+        assert!(rows[1][0][0].bold);
+        assert!(matches!(&blocks[1], Block::Paragraph(_)));
+    }
+
+    #[test]
+    fn table_alignment() {
+        let blocks = parse("| a | b | c |\n| :-- | :-: | --: |\n| 1 | 2 | 3 |");
+        let Block::Table { aligns, .. } = &blocks[0] else {
+            panic!()
+        };
+        assert_eq!(
+            aligns,
+            &[Alignment::Left, Alignment::Center, Alignment::Right]
+        );
     }
 
     #[test]
