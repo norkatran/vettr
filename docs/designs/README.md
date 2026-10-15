@@ -23,3 +23,4 @@ Every feature that adds something new to vettr, or improves an existing part, ge
 | 0010 | [View file modal](0010-view-file.md) | Fulfilled |
 | 0011 | [Discard file changes](0011-discard-file.md) | Fulfilled (not yet compiled) |
 | 0012 | [Command-line arguments](0012-cli-arguments.md) | Fulfilled (not yet compiled) |
+| 0013 | [Sandbox sudo](0013-sandbox-sudo.md) | Fulfilled |

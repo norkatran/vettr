@@ -10,6 +10,7 @@ import {
 import { z } from 'zod'
 import { type AgentEvent, encodeLine, LineBuffer, parseCommandLine } from './agent'
 import { credentialEnv } from './credential'
+import { ENVIRONMENT_PROMPT } from './environmentPrompt'
 import { REPLY_DESCRIPTION, REPLY_SERVER, REPLY_TOOL, ReplyTracker } from './replyTool'
 import { Translator, toCommandInfo } from './translate'
 
@@ -94,6 +95,7 @@ async function pump(cwd: string, credential: string, resume?: string) {
       allowDangerouslySkipPermissions: true,
       // Project settings and CLAUDE.md only, never user settings from the container's home
       settingSources: ['project'],
+      systemPrompt: { type: 'preset', preset: 'claude_code', append: ENVIRONMENT_PROMPT },
       env: {
         ...process.env,
         ...credentialEnv(credential),

@@ -27,8 +27,21 @@ pub struct RunOptions {
     pub gid: u32,
 }
 
+/// Capabilities granted back after `--cap-drop ALL` so `sudo` works inside the container.
+const SUDO_CAPS: [&str; 8] = [
+    "SETUID",
+    "SETGID",
+    "CHOWN",
+    "DAC_OVERRIDE",
+    "FOWNER",
+    "FSETID",
+    "KILL",
+    "AUDIT_WRITE",
+];
+
 /// Arguments for `docker run` (after the `docker` command). The container runs as the host user
-/// so files are not root-owned, drops all capabilities, and keeps stdin open for the protocol.
+/// so files are not root-owned, drops all capabilities except those `sudo` needs (`SUDO_CAPS`), and keeps
+/// stdin open for the protocol.
 /// Read-only mounts come after the project mount so they overlay it. The runner is the image
 /// entrypoint, so nothing follows the image name.
 pub fn build_run_args(opts: &RunOptions) -> Vec<String> {
@@ -51,7 +64,13 @@ pub fn build_run_args(opts: &RunOptions) -> Vec<String> {
     push(&[owner.as_str(), "--user"]);
     let user = format!("{}:{}", opts.uid, opts.gid);
     push(&[user.as_str()]);
-    push(&["--cap-drop", "ALL", "--security-opt", "no-new-privileges"]);
+    // sudo (design 0013) needs setuid binaries to work, so no `no-new-privileges`, and enough capabilities
+    // for root to act as root. Everything else stays dropped; the read-only overlays cannot be remounted
+    // without CAP_SYS_ADMIN.
+    push(&["--cap-drop", "ALL"]);
+    for cap in SUDO_CAPS {
+        push(&["--cap-add", cap]);
+    }
     // Without this, SELinux hosts (Fedora, RHEL) deny the container access to the bind mounts.
     // The alternative, relabelling the mounts with :z, would change labels on the user's files.
     push(&["--security-opt", "label=disable", "-v"]);
@@ -162,7 +181,9 @@ mod tests {
         let args = build_run_args(&base());
         let joined = args.join(" ");
         assert!(joined.contains("--cap-drop ALL"));
-        assert!(joined.contains("--security-opt no-new-privileges"));
+        assert!(joined.contains("--cap-add SETUID"));
+        assert!(!joined.contains("no-new-privileges"));
+        assert!(!joined.contains("SYS_ADMIN"));
         assert!(joined.contains("--security-opt label=disable"));
         assert_eq!(args.last().map(|s| s.as_str()), Some(SANDBOX_IMAGE));
     }
